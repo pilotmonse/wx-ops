@@ -167,6 +167,8 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
           <button class="chip on" data-sat="">OFF</button><button class="chip" data-sat="global">GLOBAL</button><button class="chip" data-sat="goese">GOES-E</button><button class="chip" data-sat="goesw">GOES-W</button><button class="chip" data-sat="himawari">HIMAWARI</button><button class="chip" data-sat="meteosat">METEOSAT</button></div>
         <div class="grp"><label>PRECIP</label>
           <button class="chip on" data-rad="">OFF</button><button class="chip" data-rad="rv">RADAR LOOP</button><button class="chip" data-rad="nexrad">US NEXRAD</button><button class="chip" data-rad="imerg">SAT PRECIP</button></div>
+        <div class="grp"><label>TRAFFIC</label>
+          <button class="chip on" id="tgFl" title="Atlas Air group flights (live ADS-B)">✈ ATLAS FLIGHTS</button><button class="chip on" id="tgNat" title="Active North Atlantic Tracks">NAT TRACKS</button></div>
         <div class="grp ctl"><button class="chip" id="rvPlay" title="Play / pause radar loop">❚❚</button><span id="rvTime">—</span>
           <label>OPACITY</label><input type="range" id="wxOp" min="20" max="100" value="85"></div>
       </div>
@@ -197,6 +199,26 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
     </table></div>
   </section>
 
+  <section class="grid" style="grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)">
+    <div class="panel" id="flPanel">
+      <div class="ph"><h2>ATLAS AIR GROUP · LIVE FLIGHTS (ADS-B)</h2>
+        <div class="sp"><span id="flUpd" style="color:var(--dim);font-size:10px"></span></div></div>
+      <div class="tbl" style="max-height:420px"><table style="min-width:640px">
+        <thead><tr><th style="cursor:default">FLIGHT</th><th style="cursor:default">REG / TYPE</th><th style="cursor:default">ALT</th><th style="cursor:default">GS</th><th style="cursor:default">HDG</th><th style="cursor:default">SQK</th><th style="cursor:default">NEAREST STATION</th></tr></thead>
+        <tbody id="flTb"><tr><td colspan="7" class="empty spin">Loading live ADS-B…</td></tr></tbody></table></div>
+      <div class="legend">Callsigns GTI (Atlas), PAC (Polar), SOO (Southern) on 747-400/-8F, 777F, 767 · community ADS-B receivers: aircraft over open ocean drop out of coverage · click a row to center the map</div>
+    </div>
+    <div class="panel" id="natPanel">
+      <div class="ph"><h2>NORTH ATLANTIC TRACKS</h2>
+        <div class="sp"><span id="natUpd" style="color:var(--dim);font-size:10px"></span>
+          <a class="chip" href="https://notams.aim.faa.gov/nat.html" target="_blank" rel="noopener" style="text-decoration:none">FAA NAT ↗</a></div></div>
+      <div class="tbl" style="max-height:420px"><table style="min-width:520px">
+        <thead><tr><th style="cursor:default">TRK</th><th style="cursor:default">ROUTE</th><th style="cursor:default">LEVELS</th><th style="cursor:default">VALID</th></tr></thead>
+        <tbody id="natTb"><tr><td colspan="4" class="empty spin">Loading NAT track message…</td></tr></tbody></table></div>
+      <div class="legend" id="natRmk"></div>
+    </div>
+  </section>
+
   <section class="panel">
     <div class="ph"><h2>STATION BOARD</h2>
       <div class="sp tools"><input id="q" placeholder="Search ICAO / city…" autocomplete="off"><button class="chip" id="refresh">⟳ REFRESH</button></div></div>
@@ -211,7 +233,7 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
   </section>
 
   <div class="foot">
-    Data: METAR/TAF — Norwegian Meteorological Institute (api.met.no, relaying WMO/ICAO reports) · 3-day &amp; hourly forecast — Open-Meteo (open-meteo.com, model blend) · US watches/warnings — NWS api.weather.gov · ATC ground stops/GDPs/delays — FAA NAS Status (nasstatus.faa.gov, relayed via Jina Reader r.jina.ai) · Travel advisories — U.S. Department of State (travel.state.gov) snapshot of 22 Nov 2026, checked live against the State Dept RSS on load · News — Bing News RSS (via rss2json) with GDELT fallback · Map © MapTiler © OpenStreetMap contributors (CARTO fallback) · Satellite IR — NASA GIBS (GOES/Himawari) &amp; EUMETSAT · Radar — RainViewer (global mosaic), NEXRAD via Iowa Environmental Mesonet · Satellite precipitation — NASA IMERG.<br>
+    Data: METAR/TAF — Norwegian Meteorological Institute (api.met.no, relaying WMO/ICAO reports) · 3-day &amp; hourly forecast — Open-Meteo (open-meteo.com, model blend) · US watches/warnings — NWS api.weather.gov · ATC ground stops/GDPs/delays — FAA NAS Status (nasstatus.faa.gov, relayed via Jina Reader r.jina.ai) · Atlas group flights — live ADS-B from adsb.lol community receivers (ODbL) · North Atlantic Tracks — FAA NOTAM Search (nms.aim.faa.gov) · Travel advisories — U.S. Department of State (travel.state.gov) snapshot of 22 Nov 2026, checked live against the State Dept RSS on load · News — Bing News RSS (via rss2json) with GDELT fallback · Map © MapTiler © OpenStreetMap contributors (CARTO fallback) · Satellite IR — NASA GIBS (GOES/Himawari) &amp; EUMETSAT · Radar — RainViewer (global mosaic), NEXRAD via Iowa Environmental Mesonet · Satellite precipitation — NASA IMERG.<br>
     Unofficial personal project — not affiliated with, endorsed by, or an official tool of Atlas Air Worldwide.<br>
     Situational awareness only. Not for flight planning or dispatch — always use official briefing sources (company dispatch, FAA/1800wxbrief, local AIS). Station list is a representative Atlas Air network sample; edit the STATIONS array in this file to add or remove airports.
   </div>
@@ -346,7 +368,7 @@ const CATS = ["VFR","MVFR","IFR","LIFR"];
 const CAT_RANK = {VFR:0,MVFR:1,IFR:2,LIFR:3,UNK:-1};
 
 /* ---------- state ---------- */
-const S = {metar:{}, taf:{}, fc:{}, faa:null, region:"ALL", catFilter:null, q:"", sort:{k:"cat",dir:-1}, src:{metar:"wait",taf:"wait",fc:"wait",adv:"wait",faa:"wait"}, advLive:{}};
+const S = {metar:{}, taf:{}, fc:{}, faa:null, region:"ALL", catFilter:null, q:"", sort:{k:"cat",dir:-1}, src:{metar:"wait",taf:"wait",fc:"wait",adv:"wait",faa:"wait",fl:"wait",nat:"wait"}, advLive:{}, fl:null, nat:null};
 const byIcao = Object.fromEntries(STATIONS.map(s=>[s.icao,s]));
 
 /* ---------- helpers ---------- */
@@ -598,6 +620,71 @@ const faaFor = icao => (S.faa?.items||[]).filter(x=>x.icao===icao);
 const faaWorst = icao => faaFor(icao).filter(x=>!x.gaOnly).sort((a,b)=>b.p-a.p)[0] || null;
 const faaShort = x => x.type==="DLY" ? (/DEPARTURE/.test(x.detail)&&/ARRIVAL/.test(x.detail)?"ARR/DEP":/DEPARTURE/.test(x.detail)?"DEP DLY":"ARR DLY") : x.type;
 
+/* ---------- shared relay helper (Jina Reader) ---------- */
+async function relayJSON(url, ms=20000){
+  const txt = await fetchText("https://r.jina.ai/"+url+(url.includes("?")?"&":"?")+"t="+Date.now(), ms);
+  const a = txt.search(/[\[{]/); if(a<0) throw new Error("no JSON in relay answer");
+  const close = txt[a]==="[" ? "]" : "}";
+  return JSON.parse(txt.slice(a, txt.lastIndexOf(close)+1));
+}
+
+/* ---------- Atlas Air group flights — live ADS-B (adsb.lol, community receivers) ---------- */
+const FLEET_TYPES = "B744,B748,B77L,B763";          // Atlas widebody fleet types
+const CALLSIGN_RE = /^(GTI|PAC|SOO)\d/;             // Atlas (GTI), Polar (PAC), Southern (SOO)
+const EMERG = {"7500":"HIJACK","7600":"RADIO FAIL","7700":"EMERGENCY"};
+function nearestStation(lat, lon){
+  let best=null; for(const s of STATIONS){ const d = gcNm(lat,lon,s.lat,s.lon); if(!best||d<best.d) best={s,d}; } return best;
+}
+function gcNm(a,b,c,d){ const R=3440.065, t=Math.PI/180; const x=Math.sin((c-a)*t/2)**2+Math.cos(a*t)*Math.cos(c*t)*Math.sin((d-b)*t/2)**2; return 2*R*Math.asin(Math.sqrt(x)); }
+async function loadFlights(){
+  try{
+    const j = await relayJSON(`https://api.adsb.lol/v2/type/${FLEET_TYPES}`);
+    const ac = (j.ac||[]).filter(a=>CALLSIGN_RE.test((a.flight||"").trim()) && a.lat!=null).map(a=>{
+      const ground = a.alt_baro==="ground";
+      const n = nearestStation(a.lat,a.lon);
+      return {hex:a.hex, cs:a.flight.trim(), reg:a.r||"", type:a.t||"", lat:a.lat, lon:a.lon, alt: ground?0:(+a.alt_baro||+a.alt_geom||0), ground,
+        gs:Math.round(a.gs||0), trk:a.track ?? a.true_heading ?? 0, vs:a.baro_rate||a.geom_rate||0, sq:a.squawk||"", emerg: EMERG[a.squawk] || (a.emergency&&a.emergency!=="none"?a.emergency.toUpperCase():""),
+        seen:a.seen_pos??a.seen??0, near:n};
+    }).sort((x,y)=> (x.ground-y.ground) || x.cs.localeCompare(y.cs));
+    S.fl = {at:new Date(), ac}; S.src.fl="ok"; S.src.flAt=new Date();
+  }catch(e){ S.src.fl="err"; console.warn("flights",e); }
+}
+
+/* ---------- North Atlantic Tracks (FAA NMS, nms.aim.faa.gov/datanat/nat.json) ---------- */
+function natCoord(tok){
+  const m = tok.match(/^(\d{2})(\d{2})?\/(\d{2,3})(\d{2})?$/); if(!m) return null;
+  return [ +m[1] + (m[2]?+m[2]/60:0), -( +m[3] + (m[4]?+m[4]/60:0) ) ];
+}
+async function loadNat(){
+  try{
+    const parts = await relayJSON("https://nms.aim.faa.gov/datanat/nat.json");
+    const groups = {};
+    for(const p of parts){ const k = p.notam_number_formatted || p.icao_id; (groups[k] ||= []).push(p); }
+    const tracks = []; const msgs = [];
+    for(const [id, ps] of Object.entries(groups)){
+      ps.sort((a,b)=>(a.part_no||0)-(b.part_no||0));
+      const text = ps.map(p=>p.condition_message||"").join("\n").replace(/\r/g,"");
+      const from = ps[0].start_datetime, to = ps[0].end_datetime, issuer = ps[0].icao_id==="CZQX"?"Gander (CZQX)":ps[0].icao_id==="EGGX"?"Shanwick (EGGX)":ps[0].icao_id;
+      const rmk = (text.split(/REMARKS:/)[1]||"").trim();
+      msgs.push({id, issuer, from, to, rmk, tmi:(rmk.match(/TMI IS (\d+)/)||[])[1]||""});
+      const lines = text.split("\n").map(l=>l.trim());
+      for(let i=0;i<lines.length;i++){
+        const m = lines[i].match(/^([A-Z])\s+([A-Z0-9\/ ]+)$/);
+        if(!m || !/^EAST LVLS/.test(lines[i+1]||"")) continue;
+        const route = m[2].trim().split(/\s+/);
+        const east = (lines[i+1].replace("EAST LVLS","").trim());
+        const west = ((lines[i+2]||"").replace("WEST LVLS","").trim());
+        const nar = (lines.slice(i+3,i+6).find(l=>/^NAR/.test(l))||"").replace(/^NAR\s*/,"").replace(/-$/,"");
+        tracks.push({id:m[1], route, pts: route.map(natCoord).filter(Boolean), east: east==="NIL"?"":east, west: west==="NIL"?"":west,
+          dir: east!=="NIL" ? "E" : "W", from, to, issuer, nar, msg:id});
+      }
+    }
+    S.nat = {tracks, msgs, at:new Date()}; S.src.nat="ok"; S.src.natAt=new Date();
+  }catch(e){ S.src.nat="err"; console.warn("NAT tracks",e); }
+}
+const natActive = t => { const n=Date.now(); return Date.parse(t.from)<=n && n<Date.parse(t.to); };
+const fmtZ = iso => { const d=new Date(iso); return `${pad(d.getUTCDate())}/${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}Z`; };
+
 /* ---------- derived ---------- */
 function rowData(s){
   const m = S.metar[s.icao], t = S.taf[s.icao], f = S.fc[s.icao], a = s.iso==="usa" ? null : ADV[s.iso];
@@ -627,7 +714,7 @@ function renderStatus(){
   const t = d => d ? d.toISOString().slice(11,16)+"Z" : "";
   $("status").innerHTML = [
     ["METAR",S.src.metar,t(S.src.metarAt)],["TAF",S.src.taf,t(S.src.tafAt)],["FCST",S.src.fc,t(S.src.fcAt)],
-    ["FAA NAS",S.src.faa,t(S.src.faaAt)],
+    ["FAA NAS",S.src.faa,t(S.src.faaAt)],["ADS-B",S.src.fl,t(S.src.flAt)],["NAT",S.src.nat,t(S.src.natAt)],
     ["STATE DEPT",S.src.adv, S.src.adv==="ok"?"LIVE+SNAP":S.src.adv==="snap"?"SNAPSHOT":""]
   ].map(([n,st,tm])=>`<i class="${lab[st]||"wait"}">${n} ${st==="err"?"✕":st==="wait"?"…":"●"} ${tm}</i>`).join("");
 }
@@ -648,9 +735,11 @@ function renderKpis(){
     k("","TAF ≤ IFR",tafIfr,"next 30h incl. TEMPO/PROB","var(--IFR)")+
     (()=>{ const it=(S.faa?.items||[]).filter(x=>!x.gaOnly); const gs=it.filter(x=>x.type==="GS").length, gdp=it.filter(x=>x.type==="GDP").length, net=new Set(it.filter(x=>x.icao).map(x=>x.icao)).size;
       return `<div class="kpi" id="kpiFaa" style="--c:var(--LIFR)"><div class="l">FAA ATC · GS / GDP</div><div class="v">${S.faa?gs+"<small style='font-size:14px;color:var(--dim)'> / </small>"+gdp:"—"}</div><div class="s">${S.faa? it.length+" US programs/delays · "+net+" at our stations":"loading FAA NAS status"}</div></div>`; })()+
+    `<div class="kpi" id="kpiFl" style="--c:var(--amber)"><div class="l">ATLAS AIRBORNE</div><div class="v">${S.fl?S.fl.ac.filter(f=>!f.ground).length:"—"}</div><div class="s">${S.fl?"in ADS-B coverage now"+(S.fl.ac.some(f=>f.emerg)?" · ⚠ EMERG SQUAWK":""):"loading ADS-B"}</div></div>`+
     k("","ADVISORY L3–4",adv34,"stations in Reconsider/Do Not Travel","var(--L3)")+
     k("","PEAK GUST 72H",maxG?Math.round(maxG.g)+"<small style='font-size:14px;color:var(--dim)'>KT</small>":"—",maxG?maxG.i+" (model)":"","var(--amber)");
   $("kpiFaa").onclick = ()=>$("faaPanel").scrollIntoView({behavior:"smooth",block:"start"});
+  $("kpiFl").onclick = ()=>$("flPanel").scrollIntoView({behavior:"smooth",block:"start"});
   $("kpis").querySelectorAll(".kpi").forEach(el=>el.onclick=el.onclick||(()=>{ const c=el.dataset.cat; if(!c) return; S.catFilter = S.catFilter===c?null:c; renderAll(); }));
 }
 function tafMini(t){
@@ -690,6 +779,7 @@ function renderWatch(){
     if(r.gust3>=35) items.push({p:4, r, tag:"WIND", c:"var(--amber)", t:`${r.s.icao} ${r.s.city} — model gusts to ${Math.round(r.gust3)}kt (72h)`, d:"Open-Meteo daily max 10 m gust"});
     if(r.lvl>=3) items.push({p:3+r.lvl/10, r, tag:"L"+r.lvl, c:lvlColor(r.lvl), t:`${r.s.icao} ${r.s.country} — ${LVL_TXT[r.lvl]}`, d:r.a[2]});
   });
+  (S.fl?.ac||[]).filter(f=>f.emerg).forEach(f=>items.push({p:99, r:{s:f.near.s}, tag:"SQK "+f.sq, c:"var(--IFR)", t:`${f.cs} ${f.reg} — ${f.emerg} (squawk ${f.sq})`, d:`${fmtAlt(f)} · ${f.gs}kt · ${Math.round(f.near.d)}nm from ${f.near.s.icao}`}));
   items.sort((a,b)=>b.p-a.p);
   $("watch").innerHTML = items.length ? items.map(x=>`<div class="w" data-i="${x.r.s.icao}"><span class="tag" style="background:${x.c}">${x.tag}</span><div class="t"><b>${esc(x.t)}</b><div>${esc(x.d)}</div></div></div>`).join("") : `<div class="empty">All clear — no IFR, high-wind or L3+ items in view.</div>`;
   $("watch").querySelectorAll(".w").forEach(el=>el.onclick=()=>openDrawer(el.dataset.i));
@@ -843,7 +933,67 @@ function renderFaa(){
   $("faaTb").querySelectorAll("tr.r").forEach(tr=>tr.onclick=()=>openDrawer(tr.dataset.i));
 }
 $("faaGa").onclick = ()=>{ faaShowGa=!faaShowGa; renderFaa(); };
-function renderAll(){ renderStatus(); renderKpis(); renderFaa(); renderRegions(); renderTable(); renderWatch(); renderMap(); }
+
+/* ---------- flights & NAT rendering ---------- */
+const TRAF = {showFl:true, showNat:true, flLayer:null, natLayer:null};
+const planeSvg = (c,rot) => `<svg width="22" height="22" viewBox="-12 -12 24 24" style="transform:rotate(${rot}deg);filter:drop-shadow(0 0 3px rgba(0,0,0,.9))"><path d="M0,-10 L1.6,-3 L9,1.5 L9,3 L1.6,1.2 L1.2,6.5 L3.5,8.5 L3.5,9.8 L0,8.8 L-3.5,9.8 L-3.5,8.5 L-1.2,6.5 L-1.6,1.2 L-9,3 L-9,1.5 L-1.6,-3 Z" fill="${c}" stroke="#000" stroke-width=".8"/></svg>`;
+const fmtAlt = f => f.ground ? "GND" : f.alt>=18000 ? "FL"+String(Math.round(f.alt/100)).padStart(3,"0") : f.alt.toLocaleString()+"ft";
+function initTraffic(){
+  if(!map) return;
+  map.createPane("natPane"); map.getPane("natPane").style.zIndex = 380;
+  TRAF.natLayer = L.layerGroup().addTo(map);
+  TRAF.flLayer = L.layerGroup().addTo(map);
+  $("tgFl").onclick = ()=>{ TRAF.showFl=!TRAF.showFl; $("tgFl").classList.toggle("on",TRAF.showFl); TRAF.showFl?TRAF.flLayer.addTo(map):map.removeLayer(TRAF.flLayer); };
+  $("tgNat").onclick = ()=>{ TRAF.showNat=!TRAF.showNat; $("tgNat").classList.toggle("on",TRAF.showNat); TRAF.showNat?TRAF.natLayer.addTo(map):map.removeLayer(TRAF.natLayer); };
+}
+function renderFlights(){
+  if(!S.fl){ if(S.src.fl==="err") $("flTb").innerHTML=`<tr><td colspan="7" class="empty">ADS-B feed unavailable right now — retrying.</td></tr>`; return; }
+  const ac = S.fl.ac, air = ac.filter(f=>!f.ground);
+  $("flUpd").textContent = `${air.length} AIRBORNE · ${ac.length-air.length} ON GROUND · ${S.fl.at.toISOString().slice(11,16)}Z`;
+  $("flTb").innerHTML = ac.length ? ac.map(f=>`<tr class="r" data-hex="${esc(f.hex)}" style="${f.ground?"opacity:.55":""}">
+    <td><b style="color:${f.emerg?"var(--IFR)":"#fff"}">${esc(f.cs)}</b>${f.emerg?` <span class="lv" style="background:var(--IFR)">${esc(f.emerg)}</span>`:""}</td>
+    <td>${esc(f.reg)} <small style="color:var(--dim)">${esc(f.type)}</small></td>
+    <td>${fmtAlt(f)}${!f.ground&&Math.abs(f.vs)>300?` <small style="color:var(--dim)">${f.vs>0?"↑":"↓"}</small>`:""}</td>
+    <td>${f.ground?"—":f.gs+"kt"}</td><td>${f.ground?"—":pad(Math.round(f.trk)).padStart(3,"0")+"°"}</td>
+    <td style="color:${EMERG[f.sq]?"var(--IFR)":"var(--txt)"}">${esc(f.sq||"—")}</td>
+    <td>${f.near?`${f.near.s.icao} <small style="color:var(--dim)">${Math.round(f.near.d)}nm</small>`:"—"}</td></tr>`).join("")
+    : `<tr><td colspan="7" class="empty">No Atlas group aircraft in ADS-B coverage right now.</td></tr>`;
+  $("flTb").querySelectorAll("tr.r").forEach(tr=>tr.onclick=()=>{ const f=S.fl.ac.find(x=>x.hex===tr.dataset.hex); if(f&&map){ map.setView([f.lat,f.lon],6); document.getElementById("map").scrollIntoView({behavior:"smooth",block:"center"}); } });
+  if(!TRAF.flLayer) return;
+  TRAF.flLayer.clearLayers();
+  ac.forEach(f=>{
+    const c = f.emerg ? "#ef4444" : f.ground ? "#6b7f95" : "#ffb000";
+    L.marker([f.lat,f.lon],{icon:L.divIcon({className:"", html:planeSvg(c,f.trk), iconSize:[22,22], iconAnchor:[11,11]}), zIndexOffset:1000})
+      .bindTooltip(`<b>${esc(f.cs)}</b> ${esc(f.reg)} ${esc(f.type)}<br>${fmtAlt(f)} · ${f.gs}kt · ${String(Math.round(f.trk)).padStart(3,"0")}°${f.sq?" · SQK "+esc(f.sq):""}${f.emerg?`<br><b style="color:#ff8a8a">${esc(f.emerg)}</b>`:""}<br><span style="color:#6b7f95">near ${f.near.s.icao} (${Math.round(f.near.d)}nm)</span>`,{direction:"top"})
+      .bindPopup(`<b>${esc(f.cs)}</b> · ${esc(f.reg)} · ${esc(f.type)}<br>${fmtAlt(f)} · ${f.gs}kt<br><a href="https://globe.adsb.lol/?icao=${encodeURIComponent(f.hex)}" target="_blank" rel="noopener">Track on adsb.lol ↗</a> · <a href="https://www.flightaware.com/live/flight/${encodeURIComponent(f.cs)}" target="_blank" rel="noopener">FlightAware ↗</a>`)
+      .addTo(TRAF.flLayer);
+  });
+}
+function renderNat(){
+  if(!S.nat){ if(S.src.nat==="err") $("natTb").innerHTML=`<tr><td colspan="4" class="empty">NAT track feed unavailable — open FAA NAT ↗.</td></tr>`; return; }
+  const tr = S.nat.tracks;
+  const act = tr.filter(natActive).length;
+  $("natUpd").textContent = `${tr.length} PUBLISHED · ${act} ACTIVE NOW`;
+  $("natTb").innerHTML = tr.length ? tr.map(t=>{ const a=natActive(t), fut=Date.parse(t.from)>Date.now();
+    return `<tr><td><span class="lv" style="background:${t.dir==="E"?"var(--cyan)":"var(--amber)"};font-size:13px">${t.id}</span></td>
+    <td style="white-space:normal;line-height:1.5">${t.route.map(x=>natCoord(x)?`<span style="color:var(--txt)">${esc(x)}</span>`:`<b style="color:#fff">${esc(x)}</b>`).join(" ")}<br><small style="color:var(--dim)">${t.dir==="E"?"EASTBOUND":"WESTBOUND"} · ${esc(t.issuer)}${t.nar?" · NAR "+esc(t.nar):""}</small></td>
+    <td style="white-space:normal">${t.east?`<small style="color:var(--dim)">E</small> ${esc(t.east.replace(/(\d{3})/g,"$1").split(" ").join(" "))}`:""}${t.west?`<br><small style="color:var(--dim)">W</small> ${esc(t.west)}`:""}</td>
+    <td>${fmtZ(t.from)}–<br>${fmtZ(t.to)}<br><small style="color:${a?"var(--green)":fut?"var(--amber)":"var(--dim)"}">${a?"ACTIVE":fut?"UPCOMING":"EXPIRED"}</small></td></tr>`; }).join("")
+    : `<tr><td colspan="4" class="empty">No NAT track message published right now.</td></tr>`;
+  const m = S.nat.msgs[0];
+  $("natRmk").textContent = m ? `${m.issuer} message${m.tmi?" · TMI "+m.tmi:""} · valid ${fmtZ(m.from)}–${fmtZ(m.to)} · eastbound tracks cyan, westbound amber · map shows the oceanic coordinate segment` : "";
+  if(!TRAF.natLayer) return;
+  TRAF.natLayer.clearLayers();
+  tr.forEach(t=>{
+    if(t.pts.length<2) return;
+    const a = natActive(t), c = t.dir==="E" ? "#29d3ff" : "#ffb000";
+    L.polyline(t.pts,{pane:"natPane", color:c, weight:a?2.2:1.4, opacity:a?.95:.55, dashArray:a?null:"6 6"})
+      .bindTooltip(`<b>NAT ${t.id}</b> ${t.dir==="E"?"eastbound":"westbound"} · ${a?"ACTIVE":"valid "+fmtZ(t.from)+"–"+fmtZ(t.to)}<br>${esc(t.route.join(" "))}<br>FL ${esc((t.east||t.west).split(" ").join(" "))}`,{sticky:true})
+      .addTo(TRAF.natLayer);
+    L.marker(t.pts[0],{icon:L.divIcon({className:"", html:`<div style="font:700 11px var(--mono);color:#000;background:${c};padding:0 4px;border-radius:2px;transform:translate(-120%,-50%);white-space:nowrap">${t.id}</div>`, iconSize:[0,0]}), interactive:false}).addTo(TRAF.natLayer);
+  });
+}
+function renderAll(){ renderStatus(); renderKpis(); renderFaa(); renderFlights(); renderNat(); renderRegions(); renderTable(); renderWatch(); renderMap(); }
 
 /* ---------- drawer ---------- */
 let curIcao=null, newsAbort=null;
@@ -1001,14 +1151,16 @@ async function refreshWx(all){
   await Promise.all([loadAviation("metar"), loadAviation("taf"), all? loadForecast(): null]);
   renderAll(); renderTicker();
 }
-initMap(); initWx(); renderAll();
+initMap(); initWx(); initTraffic(); renderAll();
 (async()=>{
-  await Promise.all([loadAviation("metar").then(()=>{renderAll();renderTicker();}), loadForecast().then(renderAll), loadAviation("taf").then(renderAll), loadAdvLive().then(renderAll), loadFaa().then(renderAll)]);
+  await Promise.all([loadAviation("metar").then(()=>{renderAll();renderTicker();}), loadForecast().then(renderAll), loadAviation("taf").then(renderAll), loadAdvLive().then(renderAll), loadFaa().then(renderAll), loadFlights().then(renderAll), loadNat().then(renderAll)]);
   renderTicker();
 })();
 setInterval(()=>refreshWx(false), 5*60*1000);     // METAR/TAF every 5 min
 setInterval(()=>loadForecast().then(renderAll), 60*60*1000); // forecast hourly
 setInterval(()=>loadFaa().then(renderAll), 2*60*1000);        // FAA NAS status every 2 min
+setInterval(()=>loadFlights().then(renderAll), 90*1000);       // Atlas flights every 90 s
+setInterval(()=>loadNat().then(renderAll), 15*60*1000);        // NAT tracks every 15 min
 </script>
 </body>
 </html>
