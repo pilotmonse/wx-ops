@@ -207,9 +207,10 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
           <a class="chip" href="https://www.flightaware.com/live/fleet/GTI" target="_blank" rel="noopener" style="text-decoration:none">FLIGHTAWARE GTI ↗</a>
           <a class="chip" href="https://www.flightaware.com/live/fleet/PAC" target="_blank" rel="noopener" style="text-decoration:none">PAC ↗</a></div></div>
       <div class="tbl" style="max-height:420px"><table style="min-width:640px">
-        <thead><tr><th style="cursor:default">FLIGHT</th><th style="cursor:default">REG / TYPE</th><th style="cursor:default">ALT</th><th style="cursor:default">GS</th><th style="cursor:default">HDG</th><th style="cursor:default">SQK</th><th style="cursor:default">NEAREST STATION</th></tr></thead>
-        <tbody id="flTb"><tr><td colspan="7" class="empty spin">Loading live ADS-B…</td></tr></tbody></table></div>
-      <div class="legend">Callsigns GTI (Atlas), PAC (Polar), SOO (Southern) on 747-400/-8F, 777F, 767 · community ADS-B receivers: aircraft over open ocean drop out of coverage · click a row to center the map</div>
+        <thead><tr><th style="cursor:default">FLIGHT</th><th style="cursor:default">ROUTE</th><th style="cursor:default">REG / TYPE</th><th style="cursor:default">ALT</th><th style="cursor:default">GS</th><th style="cursor:default">HDG</th><th style="cursor:default">SQK</th><th style="cursor:default">NEAREST STATION</th></tr></thead>
+        <tbody id="flTb"><tr><td colspan="8" class="empty spin">Loading live ADS-B…</td></tr></tbody></table></div>
+      <div class="legend" id="flSel" style="font-size:11px;color:var(--txt)"></div>
+      <div class="legend">Routes: adsbdb.com (crowd-reported, may be missing for charters) · trails: adsb.lol recent track · Callsigns GTI (Atlas), PAC (Polar), SOO (Southern) on 747-400/-8F, 777F, 767 · community ADS-B receivers: aircraft over open ocean drop out of coverage · click a row to center the map</div>
     </div>
     <div class="panel" id="natPanel">
       <div class="ph"><h2>NORTH ATLANTIC TRACKS</h2>
@@ -237,7 +238,7 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
   </section>
 
   <div class="foot">
-    Data: METAR/TAF — Norwegian Meteorological Institute (api.met.no, relaying WMO/ICAO reports) · 3-day &amp; hourly forecast — Open-Meteo (open-meteo.com, model blend) · US watches/warnings — NWS api.weather.gov · ATC ground stops/GDPs/delays — FAA NAS Status (nasstatus.faa.gov, relayed via Jina Reader r.jina.ai) · Atlas group flights — live ADS-B from adsb.lol community receivers (ODbL) · North Atlantic Tracks — FAA NOTAM Search (nms.aim.faa.gov) · Travel advisories — U.S. Department of State (travel.state.gov) snapshot of 22 Nov 2026, checked live against the State Dept RSS on load · News — Bing News RSS (via rss2json) with GDELT fallback · Map © MapTiler © OpenStreetMap contributors (CARTO fallback) · Satellite IR — NASA GIBS (GOES/Himawari) &amp; EUMETSAT · Radar — RainViewer (global mosaic), NEXRAD via Iowa Environmental Mesonet · Satellite precipitation — NASA IMERG.<br>
+    Data: METAR/TAF — Norwegian Meteorological Institute (api.met.no, relaying WMO/ICAO reports) · 3-day &amp; hourly forecast — Open-Meteo (open-meteo.com, model blend) · US watches/warnings — NWS api.weather.gov · ATC ground stops/GDPs/delays — FAA NAS Status (nasstatus.faa.gov, relayed via Jina Reader r.jina.ai) · Atlas group flights — live ADS-B and recent tracks from adsb.lol community receivers (ODbL), reported routes from adsbdb.com · North Atlantic Tracks — FAA NOTAM Search (nms.aim.faa.gov) · Travel advisories — U.S. Department of State (travel.state.gov) snapshot of 22 Nov 2026, checked live against the State Dept RSS on load · News — Bing News RSS (via rss2json) with GDELT fallback · Map © MapTiler © OpenStreetMap contributors (CARTO fallback) · Satellite IR — NASA GIBS (GOES/Himawari) &amp; EUMETSAT · Radar — RainViewer (global mosaic), NEXRAD via Iowa Environmental Mesonet · Satellite precipitation — NASA IMERG.<br>
     Unofficial personal project — not affiliated with, endorsed by, or an official tool of Atlas Air Worldwide.<br>
     Situational awareness only. Not for flight planning or dispatch — always use official briefing sources (company dispatch, FAA/1800wxbrief, local AIS). Station list is a representative Atlas Air network sample; edit the STATIONS array in this file to add or remove airports.
   </div>
@@ -939,7 +940,7 @@ function renderFaa(){
 $("faaGa").onclick = ()=>{ faaShowGa=!faaShowGa; renderFaa(); };
 
 /* ---------- flights & NAT rendering ---------- */
-const TRAF = {showFl:true, showNat:true, flLayer:null, natLayer:null};
+const TRAF = {showFl:true, showNat:true, flLayer:null, natLayer:null, sel:null};
 const planeSvg = (c,rot) => `<svg width="22" height="22" viewBox="-12 -12 24 24" style="transform:rotate(${rot}deg);filter:drop-shadow(0 0 3px rgba(0,0,0,.9))"><path d="M0,-10 L1.6,-3 L9,1.5 L9,3 L1.6,1.2 L1.2,6.5 L3.5,8.5 L3.5,9.8 L0,8.8 L-3.5,9.8 L-3.5,8.5 L-1.2,6.5 L-1.6,1.2 L-9,3 L-9,1.5 L-1.6,-3 Z" fill="${c}" stroke="#000" stroke-width=".8"/></svg>`;
 const fmtAlt = f => f.ground ? "GND" : f.alt>=18000 ? "FL"+String(Math.round(f.alt/100)).padStart(3,"0") : f.alt.toLocaleString()+"ft";
 function initTraffic(){
@@ -950,28 +951,106 @@ function initTraffic(){
   $("tgFl").onclick = ()=>{ TRAF.showFl=!TRAF.showFl; $("tgFl").classList.toggle("on",TRAF.showFl); TRAF.showFl?TRAF.flLayer.addTo(map):map.removeLayer(TRAF.flLayer); };
   $("tgNat").onclick = ()=>{ TRAF.showNat=!TRAF.showNat; $("tgNat").classList.toggle("on",TRAF.showNat); TRAF.showNat?TRAF.natLayer.addTo(map):map.removeLayer(TRAF.natLayer); };
 }
+/* ---------- routes (adsbdb.com, reported) & trails (adsb.lol recent trace) ---------- */
+const ROUTES = {};   // callsign -> {o,d} | null (unknown) ; fetched once per callsign per 6h
+const TRAILS = {};   // hex -> {pts:[[lat,lon]...], at}
+let routeBusy = false;
+async function loadRoutes(){
+  if(routeBusy || !S.fl) return; routeBusy = true;
+  try{
+    for(const f of S.fl.ac){
+      const c = ROUTES[f.cs]; if(c!==undefined && Date.now()-(c?.at||c===null&&ROUTES["_t_"+f.cs]||0) < 6*36e5) continue;
+      try{
+        const j = JSON.parse(await fetchText(`https://api.adsbdb.com/v0/callsign/${encodeURIComponent(f.cs)}`, 10000));
+        const r = j.response?.flightroute;
+        const ap = a => a ? {icao:a.icao_code, iata:a.iata_code, name:a.name, city:a.municipality, country:a.country_name, lat:+a.latitude, lon:+a.longitude} : null;
+        ROUTES[f.cs] = r ? {o:ap(r.origin), d:ap(r.destination), at:Date.now()} : null;
+        if(!r) ROUTES["_t_"+f.cs] = Date.now();
+      }catch(e){ /* leave uncached; retry next cycle */ }
+      await new Promise(r=>setTimeout(r,300));
+    }
+  } finally { routeBusy = false; }
+  renderFlights();
+}
+async function loadTrail(f){
+  try{
+    const j = await relayJSON(`https://globe.adsb.lol/data/traces/${f.hex.slice(-2)}/trace_recent_${f.hex}.json`, 20000);
+    const pts = (j.trace||[]).filter(p=>p[1]!=null && p[2]!=null).map(p=>[p[1],p[2]]);
+    TRAILS[f.hex] = {pts, at:Date.now()};
+  }catch(e){ TRAILS[f.hex] = {pts:[], at:Date.now()-8*6e4}; }  // retry in ~2 min
+}
+// background: refresh one trail every 6 s (keeps relay use low); selected flight first
+setInterval(async ()=>{
+  if(!S.fl || !TRAF.showFl) return;
+  const air = S.fl.ac.filter(f=>!f.ground);
+  const pick = air.find(f=>f.hex===TRAF.sel && (!TRAILS[f.hex] || Date.now()-TRAILS[f.hex].at>2*6e4))
+            || air.find(f=>!TRAILS[f.hex]) || air.find(f=>Date.now()-TRAILS[f.hex].at>10*6e4);
+  if(pick){ await loadTrail(pick); drawFlights(); }
+}, 6000);
+const routeTxt = f => { const r=ROUTES[f.cs]; if(!r) return ""; return `${r.o?.icao||"?"}→${r.d?.icao||"?"}`; };
+function selectFlight(hex, center){
+  TRAF.sel = TRAF.sel===hex && !center ? null : hex;
+  const f = S.fl?.ac.find(x=>x.hex===hex);
+  if(f && TRAF.sel && (!TRAILS[hex] || Date.now()-TRAILS[hex].at>2*6e4)) loadTrail(f).then(drawFlights);
+  if(f && center && map){ map.setView([f.lat,f.lon], Math.max(map.getZoom(),5)); document.getElementById("map").scrollIntoView({behavior:"smooth",block:"center"}); }
+  renderFlights();
+}
+function gcPath(a,b,n=48){ // great-circle points between [lat,lon] a and b
+  const t=Math.PI/180, [la1,lo1]=[a[0]*t,a[1]*t], [la2,lo2]=[b[0]*t,b[1]*t];
+  const d=2*Math.asin(Math.sqrt(Math.sin((la2-la1)/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin((lo2-lo1)/2)**2)); if(!d) return [a,b];
+  const out=[]; for(let i=0;i<=n;i++){ const f=i/n, A=Math.sin((1-f)*d)/Math.sin(d), B=Math.sin(f*d)/Math.sin(d);
+    const x=A*Math.cos(la1)*Math.cos(lo1)+B*Math.cos(la2)*Math.cos(lo2), y=A*Math.cos(la1)*Math.sin(lo1)+B*Math.cos(la2)*Math.sin(lo2), z=A*Math.sin(la1)+B*Math.sin(la2);
+    out.push([Math.atan2(z,Math.hypot(x,y))/t, Math.atan2(y,x)/t]); }
+  for(let i=1;i<out.length;i++){ while(out[i][1]-out[i-1][1]>180) out[i][1]-=360; while(out[i][1]-out[i-1][1]<-180) out[i][1]+=360; } // keep line continuous across the dateline
+  return out;
+}
+function unwrap(pts){ const o=pts.map(p=>[p[0],p[1]]); for(let i=1;i<o.length;i++){ while(o[i][1]-o[i-1][1]>180) o[i][1]-=360; while(o[i][1]-o[i-1][1]<-180) o[i][1]+=360; } return o; }
+
 function renderFlights(){
-  if(!S.fl){ if(S.src.fl==="err") $("flTb").innerHTML=`<tr><td colspan="7" class="empty">ADS-B feed unavailable right now — retrying.</td></tr>`; return; }
+  if(!S.fl){ if(S.src.fl==="err") $("flTb").innerHTML=`<tr><td colspan="8" class="empty">ADS-B feed unavailable right now — retrying.</td></tr>`; return; }
   const ac = S.fl.ac, air = ac.filter(f=>!f.ground);
   $("flUpd").textContent = `${air.length} AIRBORNE · ${ac.length-air.length} ON GROUND · ${S.fl.at.toISOString().slice(11,16)}Z`;
-  $("flTb").innerHTML = ac.length ? ac.map(f=>`<tr class="r" data-hex="${esc(f.hex)}" style="${f.ground?"opacity:.55":""}">
+  $("flTb").innerHTML = ac.length ? ac.map(f=>{ const r=ROUTES[f.cs];
+    return `<tr class="r" data-hex="${esc(f.hex)}" style="${f.ground?"opacity:.55;":""}${TRAF.sel===f.hex?"outline:1px solid var(--cyan);background:#0f1a27":""}">
     <td><b style="color:${f.emerg?"var(--IFR)":"#fff"}">${esc(f.cs)}</b>${f.emerg?` <span class="lv" style="background:var(--IFR)">${esc(f.emerg)}</span>`:""}</td>
+    <td>${r?`<b style="color:var(--cyan)">${esc(r.o?.icao||"?")}</b><span style="color:var(--dim)">→</span><b style="color:var(--cyan)">${esc(r.d?.icao||"?")}</b>`:r===null?`<small style="color:var(--mute)">unlisted</small>`:`<small style="color:var(--mute)">…</small>`}</td>
     <td>${esc(f.reg)} <small style="color:var(--dim)">${esc(f.type)}</small></td>
     <td>${fmtAlt(f)}${!f.ground&&Math.abs(f.vs)>300?` <small style="color:var(--dim)">${f.vs>0?"↑":"↓"}</small>`:""}</td>
-    <td>${f.ground?"—":f.gs+"kt"}</td><td>${f.ground?"—":pad(Math.round(f.trk)).padStart(3,"0")+"°"}</td>
+    <td>${f.ground?"—":f.gs+"kt"}</td><td>${f.ground?"—":String(Math.round(f.trk)).padStart(3,"0")+"°"}</td>
     <td style="color:${EMERG[f.sq]?"var(--IFR)":"var(--txt)"}">${esc(f.sq||"—")}</td>
-    <td>${f.near?`${f.near.s.icao} <small style="color:var(--dim)">${Math.round(f.near.d)}nm</small>`:"—"}</td></tr>`).join("")
-    : `<tr><td colspan="7" class="empty">No Atlas group aircraft in ADS-B coverage right now.</td></tr>`;
-  $("flTb").querySelectorAll("tr.r").forEach(tr=>tr.onclick=()=>{ const f=S.fl.ac.find(x=>x.hex===tr.dataset.hex); if(f&&map){ map.setView([f.lat,f.lon],6); document.getElementById("map").scrollIntoView({behavior:"smooth",block:"center"}); } });
-  if(!TRAF.flLayer) return;
+    <td>${f.near?`${f.near.s.icao} <small style="color:var(--dim)">${Math.round(f.near.d)}nm</small>`:"—"}</td></tr>`; }).join("")
+    : `<tr><td colspan="8" class="empty">No Atlas group aircraft in ADS-B coverage right now.</td></tr>`;
+  $("flTb").querySelectorAll("tr.r").forEach(tr=>tr.onclick=()=>selectFlight(tr.dataset.hex, true));
+  drawFlights();
+}
+function drawFlights(){
+  if(!TRAF.flLayer || !S.fl) return;
   TRAF.flLayer.clearLayers();
-  ac.forEach(f=>{
-    const c = f.emerg ? "#ef4444" : f.ground ? "#6b7f95" : "#ffb000";
-    L.marker([f.lat,f.lon],{icon:L.divIcon({className:"", html:planeSvg(c,f.trk), iconSize:[22,22], iconAnchor:[11,11]}), zIndexOffset:1000})
-      .bindTooltip(`<b>${esc(f.cs)}</b> ${esc(f.reg)} ${esc(f.type)}<br>${fmtAlt(f)} · ${f.gs}kt · ${String(Math.round(f.trk)).padStart(3,"0")}°${f.sq?" · SQK "+esc(f.sq):""}${f.emerg?`<br><b style="color:#ff8a8a">${esc(f.emerg)}</b>`:""}<br><span style="color:#6b7f95">near ${f.near.s.icao} (${Math.round(f.near.d)}nm)</span>`,{direction:"top"})
-      .bindPopup(`<b>${esc(f.cs)}</b> · ${esc(f.reg)} · ${esc(f.type)}<br>${fmtAlt(f)} · ${f.gs}kt<br><a href="https://globe.adsb.lol/?icao=${encodeURIComponent(f.hex)}" target="_blank" rel="noopener">Track on adsb.lol ↗</a> · <a href="https://www.flightaware.com/live/flight/${encodeURIComponent(f.cs)}" target="_blank" rel="noopener">FlightAware ↗</a>`)
+  const sel = TRAF.sel;
+  S.fl.ac.forEach(f=>{
+    const isSel = f.hex===sel, r = ROUTES[f.cs];
+    const tr = TRAILS[f.hex]?.pts;
+    if(tr && tr.length>1 && !f.ground){
+      const line = unwrap(tr.concat([[f.lat,f.lon]]));
+      L.polyline(line,{color:isSel?"#ffd166":"#ffb000", weight:isSel?3:1.3, opacity:isSel?.95:(sel?.18:.45), interactive:false}).addTo(TRAF.flLayer);
+    }
+    if(isSel && r?.d && !isNaN(r.d.lat) && !f.ground){
+      L.polyline(gcPath([f.lat,f.lon],[r.d.lat,r.d.lon]),{color:"#29d3ff", weight:2, opacity:.85, dashArray:"6 6", interactive:false}).addTo(TRAF.flLayer);
+    }
+    if(isSel && r){ [["DEP",r.o],["ARR",r.d]].forEach(([k,a])=>{ if(!a||isNaN(a.lat)) return;
+      L.marker([a.lat,a.lon],{icon:L.divIcon({className:"", html:`<div style="font:700 10px var(--mono);color:#000;background:#29d3ff;padding:1px 4px;border-radius:2px;transform:translate(-50%,-140%);white-space:nowrap">${k} ${esc(a.icao||"")}</div>`, iconSize:[0,0]}), interactive:false, zIndexOffset:900}).addTo(TRAF.flLayer);
+      L.circleMarker([a.lat,a.lon],{radius:4,color:"#29d3ff",weight:2,fillOpacity:0,interactive:false}).addTo(TRAF.flLayer); }); }
+    const c = f.emerg ? "#ef4444" : f.ground ? "#6b7f95" : isSel ? "#ffd166" : "#ffb000";
+    const rt = r ? `<br><b style="color:#29d3ff">${esc(r.o?.icao||"?")} → ${esc(r.d?.icao||"?")}</b> <span style="color:#6b7f95">${esc(r.o?.city||"")} → ${esc(r.d?.city||"")} (reported)</span>` : "";
+    L.marker([f.lat,f.lon],{icon:L.divIcon({className:"", html:planeSvg(c,f.trk), iconSize:[22,22], iconAnchor:[11,11]}), zIndexOffset:isSel?2000:1000})
+      .bindTooltip(`<b>${esc(f.cs)}</b> ${esc(f.reg)} ${esc(f.type)}${rt}<br>${fmtAlt(f)} · ${f.gs}kt · ${String(Math.round(f.trk)).padStart(3,"0")}°${f.sq?" · SQK "+esc(f.sq):""}${f.emerg?`<br><b style="color:#ff8a8a">${esc(f.emerg)}</b>`:""}<br><span style="color:#6b7f95">near ${f.near.s.icao} (${Math.round(f.near.d)}nm) · click for trail &amp; route</span>`,{direction:"top"})
+      .on("click",()=>selectFlight(f.hex,false))
       .addTo(TRAF.flLayer);
   });
+  if(sel){ const f=S.fl.ac.find(x=>x.hex===sel); const r=f&&ROUTES[f.cs];
+    $("flSel").innerHTML = f ? `<b style="color:#ffd166">${esc(f.cs)}</b> ${esc(f.reg)} ${esc(f.type)} · ${fmtAlt(f)} · ${f.gs}kt${r?` · <b style="color:var(--cyan)">${esc(r.o?.icao||"?")}→${esc(r.d?.icao||"?")}</b> ${esc(r.o?.name||"")} → ${esc(r.d?.name||"")} <span style="color:var(--mute)">(reported route)</span>`:""} · <a href="https://globe.adsb.lol/?icao=${encodeURIComponent(f.hex)}" target="_blank" rel="noopener">adsb.lol ↗</a> · <a href="https://www.flightaware.com/live/flight/${encodeURIComponent(f.cs)}" target="_blank" rel="noopener">FlightAware ↗</a> · <a href="#" id="flClr">clear</a>` : "";
+    const c=$("flClr"); if(c) c.onclick=e=>{e.preventDefault(); TRAF.sel=null; renderFlights();};
+  } else $("flSel").innerHTML = `<span style="color:var(--mute)">Click a plane or a row to show its trail and route.</span>`;
 }
 function renderNat(){
   if(!S.nat){ if(S.src.nat==="err") $("natTb").innerHTML=`<tr><td colspan="4" class="empty">NAT track feed unavailable — open FAA NAT ↗.</td></tr>`; return; }
@@ -1157,13 +1236,13 @@ async function refreshWx(all){
 }
 initMap(); initWx(); initTraffic(); renderAll();
 (async()=>{
-  await Promise.all([loadAviation("metar").then(()=>{renderAll();renderTicker();}), loadForecast().then(renderAll), loadAviation("taf").then(renderAll), loadAdvLive().then(renderAll), loadFaa().then(renderAll), loadFlights().then(renderAll), loadNat().then(renderAll)]);
+  await Promise.all([loadAviation("metar").then(()=>{renderAll();renderTicker();}), loadForecast().then(renderAll), loadAviation("taf").then(renderAll), loadAdvLive().then(renderAll), loadFaa().then(renderAll), loadFlights().then(()=>{ renderAll(); loadRoutes(); }), loadNat().then(renderAll)]);
   renderTicker();
 })();
 setInterval(()=>refreshWx(false), 5*60*1000);     // METAR/TAF every 5 min
 setInterval(()=>loadForecast().then(renderAll), 60*60*1000); // forecast hourly
 setInterval(()=>loadFaa().then(renderAll), 2*60*1000);        // FAA NAS status every 2 min
-setInterval(()=>loadFlights().then(renderAll), 90*1000);       // Atlas flights every 90 s
+setInterval(()=>loadFlights().then(()=>{ renderAll(); loadRoutes(); }), 90*1000);       // Atlas flights every 90 s (+ routes for new callsigns)
 setInterval(()=>loadNat().then(renderAll), 15*60*1000);        // NAT tracks every 15 min
 </script>
 </body>
