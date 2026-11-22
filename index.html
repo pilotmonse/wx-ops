@@ -1049,8 +1049,9 @@ function drawFlights(){
       L.polyline(gcPath([f.lat,f.lon],[r.d.lat,r.d.lon]),{color:"#29d3ff", weight:2, opacity:.85, dashArray:"6 6", interactive:false}).addTo(TRAF.flLayer);
     }
     if(isSel && fits){ [["DEP",r.o],["ARR",r.d]].forEach(([k,a])=>{ if(!a||isNaN(a.lat)) return;
-      L.marker([a.lat,a.lon],{icon:L.divIcon({className:"", html:`<div style="font:700 10px var(--mono);color:#000;background:#29d3ff;padding:1px 4px;border-radius:2px;transform:translate(-50%,-140%);white-space:nowrap">${k} ${esc(a.icao||"")}</div>`, iconSize:[0,0]}), interactive:false, zIndexOffset:900}).addTo(TRAF.flLayer);
-      L.circleMarker([a.lat,a.lon],{radius:4,color:"#29d3ff",weight:2,fillOpacity:0,interactive:false}).addTo(TRAF.flLayer); }); }
+      const lon = a.lon - 360*Math.round((a.lon - f.lon)/360);   // same side of the dateline as the aircraft/route line
+      L.marker([a.lat,lon],{icon:L.divIcon({className:"", html:`<div style="font:700 10px var(--mono);color:#000;background:#29d3ff;padding:1px 4px;border-radius:2px;transform:translate(-50%,-140%);white-space:nowrap">${k} ${esc(a.icao||"")}</div>`, iconSize:[0,0]}), interactive:false, zIndexOffset:900}).addTo(TRAF.flLayer);
+      L.circleMarker([a.lat,lon],{radius:4,color:"#29d3ff",weight:2,fillOpacity:0,interactive:false}).addTo(TRAF.flLayer); }); }
     const c = f.emerg ? "#ef4444" : f.ground ? "#6b7f95" : isSel ? "#ffd166" : "#ffb000";
     const rt = r ? (fits ? `<br><b style="color:#29d3ff">${esc(r.o?.icao||"?")} → ${esc(r.d?.icao||"?")}</b> <span style="color:#6b7f95">${esc(r.o?.city||"")} → ${esc(r.d?.city||"")} (reported)</span>` : `<br><span style="color:#6b7f95">route unverified</span>`) : "";
     L.marker([f.lat,f.lon],{icon:L.divIcon({className:"", html:planeSvg(c,f.trk), iconSize:[22,22], iconAnchor:[11,11]}), zIndexOffset:isSel?2000:1000})
