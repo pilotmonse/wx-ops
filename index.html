@@ -1302,10 +1302,13 @@ function tafBars(t, mark){
     <div class="ax">${cells.filter((c,i)=>i%6===0).map(c=>`<span>${pad(c.T.getUTCDate())}/${pad(c.T.getUTCHours())}Z</span>`).join("")}</div></div>`;
 }
 function inPoly(lat, lon, poly){
+  // unwrap the polygon as one continuous shape, then shift it whole to the point's side of the globe
+  const P = poly.map(c=>({lat:c.lat, lon:c.lon}));
+  for(let i=1;i<P.length;i++){ while(P[i].lon-P[i-1].lon>180) P[i].lon-=360; while(P[i].lon-P[i-1].lon<-180) P[i].lon+=360; }
+  const cx = P.reduce((a,c)=>a+c.lon,0)/P.length, sh = 360*Math.round((cx-lon)/360);
   let inside=false;
-  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
-    let xi=poly[i].lon, xj=poly[j].lon; xi -= 360*Math.round((xi-lon)/360); xj -= 360*Math.round((xj-lon)/360);
-    const yi=poly[i].lat, yj=poly[j].lat;
+  for(let i=0,j=P.length-1;i<P.length;j=i++){
+    const xi=P[i].lon-sh, xj=P[j].lon-sh, yi=P[i].lat, yj=P[j].lat;
     if(((yi>lat)!==(yj>lat)) && (lon < (xj-xi)*(lat-yi)/((yj-yi)||1e-9)+xi)) inside=!inside;
   }
   return inside;
