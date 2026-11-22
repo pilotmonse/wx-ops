@@ -990,7 +990,7 @@ function renderNat(){
     L.polyline(t.pts,{pane:"natPane", color:c, weight:a?2.2:1.4, opacity:a?.95:.55, dashArray:a?null:"6 6"})
       .bindTooltip(`<b>NAT ${t.id}</b> ${t.dir==="E"?"eastbound":"westbound"} · ${a?"ACTIVE":"valid "+fmtZ(t.from)+"–"+fmtZ(t.to)}<br>${esc(t.route.join(" "))}<br>FL ${esc((t.east||t.west).split(" ").join(" "))}`,{sticky:true})
       .addTo(TRAF.natLayer);
-    L.marker(t.pts[0],{icon:L.divIcon({className:"", html:`<div style="font:700 11px var(--mono);color:#000;background:${c};padding:0 4px;border-radius:2px;transform:translate(-120%,-50%);white-space:nowrap">${t.id}</div>`, iconSize:[0,0]}), interactive:false}).addTo(TRAF.natLayer);
+    L.marker(t.pts[0],{icon:L.divIcon({className:"", html:`<div style="font:700 10px var(--mono);color:#000;background:${c};padding:0 3px;border-radius:2px;transform:translate(${t.dir==="E"?"-120%":"20%"},-50%);white-space:nowrap">${t.id}</div>`, iconSize:[0,0]}), interactive:false}).addTo(TRAF.natLayer);
   });
 }
 function renderAll(){ renderStatus(); renderKpis(); renderFaa(); renderFlights(); renderNat(); renderRegions(); renderTable(); renderWatch(); renderMap(); }
