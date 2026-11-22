@@ -139,6 +139,31 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
 .btn{border:1px solid var(--line2);padding:5px 10px;color:var(--cyan);font-size:11px}
 .foot{color:var(--mute);font-size:10px;line-height:1.6;margin-top:16px}
 .spin{color:var(--amber)}
+.bform{display:flex;flex-wrap:wrap;gap:10px 14px;padding:12px;border-bottom:1px solid var(--line);align-items:flex-end;background:#070c13}
+.bform label{display:flex;flex-direction:column;gap:4px;color:var(--dim);font-size:9px;letter-spacing:.16em}
+.bform input{background:#03060a;border:1px solid var(--line2);color:#fff;font-family:var(--mono);font-size:14px;padding:6px 8px;width:96px;text-transform:uppercase;letter-spacing:.08em}
+.bform input.w{width:170px}
+.bform input:focus{outline:none;border-color:var(--cyan)}
+.bform .go{background:var(--cyan);color:#000;border:none;font-family:var(--mono);font-weight:700;letter-spacing:.12em;padding:8px 16px;cursor:pointer}
+.bsum{display:flex;flex-wrap:wrap;gap:8px 22px;padding:10px 12px;border-bottom:1px solid var(--line);color:var(--dim);font-size:11px}
+.bsum b{color:#fff}
+.bcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:10px;padding:12px}
+.bcard{background:var(--panel2);border:1px solid var(--line);border-top:3px solid var(--c);padding:10px 12px;min-width:0}
+.bcard .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.bcard .role{font-size:10px;font-weight:700;color:#000;background:var(--c);padding:1px 6px;letter-spacing:.12em}
+.bcard .id{font-size:20px;color:#fff;font-weight:700;letter-spacing:.06em}
+.bcard .nm{color:var(--dim);font-size:11px;width:100%}
+.bcard .win{margin:8px 0;padding:6px 8px;border:1px solid var(--line2);background:#03060a;font-size:11px;line-height:1.6}
+.bcard .rawbox{font-size:11px;padding:7px 8px}
+.bcard .fx{color:var(--txt);font-size:11px;margin-top:6px;line-height:1.6}
+.bcard .tl .row>span{width:62px}
+.bcard .tl .ax{margin-left:70px}
+.bcard .tl .bar i.mk{outline:2px solid #fff;outline-offset:-2px}
+.bsig{padding:0 12px 12px}
+.bsig .s{border-left:3px solid var(--c);background:var(--panel2);padding:7px 10px;margin-bottom:6px;font-size:11px}
+.bsig .s b{color:#fff}
+.bsig .s pre{white-space:pre-wrap;color:var(--dim);margin:4px 0 0;font-family:var(--mono);font-size:10px}
+
 </style>
 </head>
 <body>
@@ -187,6 +212,21 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
       <div class="ph"><h2>WATCHLIST</h2><div class="sp"><span style="color:var(--dim);font-size:10px">IFR/LIFR · FAA GS/GDP/DELAYS · TAF ≤ IFR · GUSTS ≥ 35KT · ADVISORY L3–4</span></div></div>
       <div class="watch" id="watch"><div class="empty spin">Scanning…</div></div>
     </div>
+  </section>
+
+  <section class="panel" id="briefPanel" style="margin-bottom:12px">
+    <div class="ph"><h2>WX BRIEFING · DEPARTURE · DESTINATION · ALTERNATES</h2>
+      <div class="sp"><button class="chip" id="bCopy" style="display:none">COPY BRIEFING</button><button class="chip" id="bLink" style="display:none">COPY LINK</button><button class="chip" id="bClear" style="display:none">CLEAR</button></div></div>
+    <form class="bform" id="bForm" autocomplete="off">
+      <label>DEP<input id="bDep" maxlength="4" placeholder="KMIA" required></label>
+      <label>DEST<input id="bDest" maxlength="4" placeholder="EBLG" required></label>
+      <label>ALTERNATES<input id="bAlt" class="w" placeholder="EDDK, EHAM"></label>
+      <label>ETD (UTC)<input id="bEtd" maxlength="4" placeholder="HHMM"></label>
+      <label>ETE<input id="bEte" maxlength="5" placeholder="H:MM"></label>
+      <button class="go" type="submit">BRIEF ▶</button>
+      <span style="color:var(--mute);font-size:10px;max-width:420px;line-height:1.5">Any ICAO worldwide. ETD defaults to the next hour; ETE is estimated from great-circle distance at 470 kt + 30 min if left blank. Conditions are checked ±1 h around ETD / ETA.</span>
+    </form>
+    <div id="bOut"><div class="empty">Enter a departure and destination to build a briefing: current METAR, TAF at your ETD/ETA, model forecast, SIGMETs along the route, and security advisories.</div></div>
   </section>
 
   <section class="panel" id="faaPanel" style="margin-bottom:12px">
@@ -238,7 +278,7 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
   </section>
 
   <div class="foot">
-    Data: METAR/TAF — Norwegian Meteorological Institute (api.met.no, relaying WMO/ICAO reports) · 3-day &amp; hourly forecast — Open-Meteo (open-meteo.com, model blend) · US watches/warnings — NWS api.weather.gov · ATC ground stops/GDPs/delays — FAA NAS Status (nasstatus.faa.gov, relayed via Jina Reader r.jina.ai) · Atlas group flights — live ADS-B and recent tracks from adsb.lol community receivers (ODbL), reported routes from adsbdb.com · North Atlantic Tracks — FAA NOTAM Search (nms.aim.faa.gov) · Travel advisories — U.S. Department of State (travel.state.gov) snapshot of 22 Nov 2026, checked live against the State Dept RSS on load · News — Bing News RSS (via rss2json) with GDELT fallback · Map © MapTiler © OpenStreetMap contributors (CARTO fallback) · Satellite IR — NASA GIBS (GOES/Himawari) &amp; EUMETSAT · Radar — RainViewer (global mosaic), NEXRAD via Iowa Environmental Mesonet · Satellite precipitation — NASA IMERG.<br>
+    Data: METAR/TAF — Norwegian Meteorological Institute (api.met.no, relaying WMO/ICAO reports) · 3-day &amp; hourly forecast — Open-Meteo (open-meteo.com, model blend) · US watches/warnings — NWS api.weather.gov · ATC ground stops/GDPs/delays — FAA NAS Status (nasstatus.faa.gov, relayed via Jina Reader r.jina.ai) · Briefing — airport data and SIGMETs from aviationweather.gov (NOAA/NWS AWC) · Atlas group flights — live ADS-B and recent tracks from adsb.lol community receivers (ODbL), reported routes from adsbdb.com · North Atlantic Tracks — FAA NOTAM Search (nms.aim.faa.gov) · Travel advisories — U.S. Department of State (travel.state.gov) snapshot of 22 Nov 2026, checked live against the State Dept RSS on load · News — Bing News RSS (via rss2json) with GDELT fallback · Map © MapTiler © OpenStreetMap contributors (CARTO fallback) · Satellite IR — NASA GIBS (GOES/Himawari) &amp; EUMETSAT · Radar — RainViewer (global mosaic), NEXRAD via Iowa Environmental Mesonet · Satellite precipitation — NASA IMERG.<br>
     Unofficial personal project — not affiliated with, endorsed by, or an official tool of Atlas Air Worldwide.<br>
     Situational awareness only. Not for flight planning or dispatch — always use official briefing sources (company dispatch, FAA/1800wxbrief, local AIS). Station list is a representative Atlas Air network sample; edit the STATIONS array in this file to add or remove airports.
   </div>
@@ -1224,6 +1264,189 @@ function drawHourly(H){
     const lx = e.clientX-rect.left; tip.style.left = Math.min(lx+12, W-130)+"px"; tip.style.top="8px"; };
   cv.onmouseleave = ()=>tip.style.display="none";
 }
+
+
+/* ============================================================
+   WX BRIEFING — DEP / DEST / ALTN
+   ============================================================ */
+const ISO2_3 = {MX:"mex",PA:"pan",CO:"col",EC:"ecu",PE:"per",CL:"chl",BR:"bra",AR:"arg",GB:"gbr",DE:"deu",BE:"bel",NL:"nld",FR:"fra",IT:"ita",ES:"esp",TR:"tur",AE:"are",QA:"qat",BH:"bhr",KW:"kwt",KE:"ken",ZA:"zaf",NG:"nga",JP:"jpn",KR:"kor",HK:"hkg",TW:"twn",CN:"chn",PH:"phl",TH:"tha",SG:"sgp",MY:"mys",IN:"ind",AU:"aus",NZ:"nzl"};
+const US_LIKE = new Set(["US","PR","GU","VI","AS","MP"]);
+const BR = {layer:null, data:null};
+function parseEtd(v){
+  const now = new Date();
+  if(!/^\d{4}$/.test(v||"")){ const d=new Date(now); d.setUTCMinutes(0,0,0); d.setUTCHours(d.getUTCHours()+1); return d; }
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), +v.slice(0,2), +v.slice(2)));
+  if(d - now < -3*36e5) d.setUTCDate(d.getUTCDate()+1);   // more than 3 h ago → tomorrow
+  return d;
+}
+function parseEte(v){ const m=(v||"").match(/^(\d{1,2}):?(\d{2})$/); return m ? (+m[1]*60 + +m[2])*6e4 : null; }
+function tafWindow(t, a, b){
+  if(!t) return null;
+  if(b < t.from || a > t.to) return {out:true};
+  let prev="UNK", temp=null;
+  for(let h=+a; h<=+b; h+=36e5){ const T=new Date(h); if(T<t.from||T>=t.to) continue;
+    let p=null; for(const s of t.segs){ if(!/TEMPO|PROB/.test(s.type) && s.from<=T) p=s.cat; }
+    prev = worse(prev, p||"UNK");
+    for(const s of t.segs){ if(/TEMPO|PROB/.test(s.type) && s.from<=T && T<s.to) temp = temp? worse(temp,s.cat) : s.cat; } }
+  return {prev, temp, worst: temp? worse(prev,temp) : prev};
+}
+function tafBars(t, mark){
+  const start = new Date(t.from); const cells=[]; 
+  for(let h=+start; h<+t.to && cells.length<36; h+=36e5){ const T=new Date(h);
+    let p=null; for(const s of t.segs){ if(!/TEMPO|PROB/.test(s.type) && s.from<=T) p=s.cat; }
+    let tm=null; for(const s of t.segs){ if(/TEMPO|PROB/.test(s.type) && s.from<=T && T<s.to) tm = tm? worse(tm,s.cat) : s.cat; }
+    cells.push({T,p,tm,mk: mark && Math.abs(T-mark) < 36e5/2+1});
+  }
+  return `<div class="tl"><div class="row"><span>PREVAIL</span><div class="bar">${cells.map(c=>`<i class="${c.mk?"mk":""}" style="background:${catColor(c.p)}" title="${pad(c.T.getUTCDate())}/${pad(c.T.getUTCHours())}Z ${c.p||"—"}"></i>`).join("")}</div></div>
+    <div class="row"><span>TEMPO/PROB</span><div class="bar">${cells.map(c=>`<i class="${c.mk?"mk":""}" style="background:${c.tm?catColor(c.tm):"transparent"}" title="${pad(c.T.getUTCDate())}/${pad(c.T.getUTCHours())}Z ${c.tm||"—"}"></i>`).join("")}</div></div>
+    <div class="ax">${cells.filter((c,i)=>i%6===0).map(c=>`<span>${pad(c.T.getUTCDate())}/${pad(c.T.getUTCHours())}Z</span>`).join("")}</div></div>`;
+}
+function inPoly(lat, lon, poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    let xi=poly[i].lon, xj=poly[j].lon; xi -= 360*Math.round((xi-lon)/360); xj -= 360*Math.round((xj-lon)/360);
+    const yi=poly[i].lat, yj=poly[j].lat;
+    if(((yi>lat)!==(yj>lat)) && (lon < (xj-xi)*(lat-yi)/((yj-yi)||1e-9)+xi)) inside=!inside;
+  }
+  return inside;
+}
+async function runBrief(dep, dest, alts, etdV, eteV){
+  const ids = [dep, dest, ...alts].filter((x,i,a)=>/^[A-Z0-9]{4}$/.test(x) && a.indexOf(x)===i);
+  $("bOut").innerHTML = `<div class="empty spin">Building briefing for ${esc(ids.join(" · "))}…</div>`;
+  try{ location.hash = "brief=" + [dep,dest,alts.join("-"),etdV||"",eteV||""].join(","); }catch(e){}
+  try{ localStorage.setItem("wxops.brief", JSON.stringify({dep,dest,alts,etdV,eteV})); }catch(e){}
+  // 1) airport info (aviationweather.gov station info, relayed), METAR+TAF (met.no), SIGMETs (AWC, relayed)
+  const [info, metTxt, tafTxt, isig, usig] = await Promise.all([
+    relayJSON(`https://aviationweather.gov/api/data/stationinfo?ids=${ids.join(",")}&format=json`).catch(()=>[]),
+    fetchText(`https://api.met.no/weatherapi/tafmetar/1.0/metar.txt?icao=${ids.join(",")}`).catch(()=>""),
+    fetchText(`https://api.met.no/weatherapi/tafmetar/1.0/taf.txt?icao=${ids.join(",")}`).catch(()=>""),
+    relayJSON("https://aviationweather.gov/api/data/isigmet?format=json").catch(()=>null),
+    relayJSON("https://aviationweather.gov/api/data/airsigmet?format=json").catch(()=>null),
+  ]);
+  const ap = {};
+  for(const id of ids){
+    const i = (Array.isArray(info)?info:[]).find(x=>x.icaoId===id); const st = byIcao[id];
+    ap[id] = {id, name: i?.site || st?.city || id, country: i?.country || "", lat: i?.lat ?? st?.lat, lon: i?.lon ?? st?.lon, elev: i?.elev, iata: i?.iataId || st?.iata || ""};
+  }
+  const mr = lastReports(metTxt), tr = lastReports(tafTxt);
+  for(const id of ids){
+    const ms = (mr[id]||[]).map(parseMetar).filter(m=>m.time).sort((a,b)=>a.time-b.time); ap[id].metar = ms[ms.length-1] || null;
+    for(let k=(tr[id]||[]).length-1;k>=0;k--){ const t=parseTaf(tr[id][k]); if(t){ ap[id].taf=t; break; } }
+  }
+  const D = ap[dep], A = ap[dest];
+  if(D.lat==null || A.lat==null){ $("bOut").innerHTML = `<div class="empty">Couldn't find ${esc(D.lat==null?dep:dest)} — check the ICAO code.</div>`; return; }
+  const dist = gcNm(D.lat,D.lon,A.lat,A.lon);
+  const etd = parseEtd(etdV); const eteMs = parseEte(eteV) ?? Math.round((dist/470*60+30))*6e4;
+  const eta = new Date(+etd + eteMs);
+  // 2) model forecast at each airport (Open-Meteo, hourly, UTC)
+  const withC = ids.filter(id=>ap[id].lat!=null);
+  try{
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${withC.map(i=>ap[i].lat).join(",")}&longitude=${withC.map(i=>ap[i].lon).join(",")}&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation_probability,visibility,cloud_cover_low,weather_code&forecast_days=4&timezone=GMT&wind_speed_unit=kn`;
+    const j = JSON.parse(await fetchText(u, 20000)); const arr = Array.isArray(j)?j:[j];
+    arr.forEach((f,k)=>{ ap[withC[k]].fc = f.hourly; });
+  }catch(e){}
+  // 3) NWS alerts for US-type airports
+  await Promise.all(ids.filter(id=>US_LIKE.has(ap[id].country) && ap[id].lat!=null).map(async id=>{
+    try{ ap[id].nws = (JSON.parse(await fetchText(`https://api.weather.gov/alerts/active?point=${ap[id].lat},${ap[id].lon}`)).features||[]).map(f=>f.properties); }catch(e){}
+  }));
+  // 4) SIGMETs touching a 100 nm corridor along the great-circle route, valid between ETD and ETA
+  const route = gcPath([D.lat,D.lon],[A.lat,A.lon], Math.max(8, Math.round(dist/40)));
+  const sigs = [];
+  const consider = (raw, src) => {
+    const poly = (raw.coords||[]).map(c=>({lat:+c.lat, lon:+c.lon})).filter(c=>!isNaN(c.lat));
+    if(!poly.length) return;
+    const from = new Date((raw.validTimeFrom||0)*1000), to = new Date((raw.validTimeTo||0)*1000);
+    if(raw.validTimeTo && (to < etd || from > eta)) return;
+    const hit = route.some(([la,lo]) => (poly.length>2 && inPoly(la,lo,poly)) || poly.some(c=>gcNm(la,lo,c.lat,c.lon) < 100));
+    if(hit) sigs.push({src, hazard: raw.hazard || raw.airSigmetType || "", fir: raw.firName || raw.firId || raw.icaoId || "", qual: raw.qualifier || raw.severity || "",
+      base: raw.base ?? raw.altitudeLow1 ?? null, top: raw.top ?? raw.altitudeHi1 ?? null, from, to, raw: raw.rawSigmet || raw.rawAirSigmet || "", poly});
+  };
+  (Array.isArray(isig)?isig:[]).forEach(x=>consider(x,"INTL"));
+  (Array.isArray(usig)?usig:[]).forEach(x=>consider(x,"US"));
+  BR.data = {dep, dest, alts, ids, ap, dist, etd, eta, eteMs, sigs, route, sigOk: Array.isArray(isig)};
+  renderBrief();
+}
+function fcAt(h, t){
+  if(!h) return null; const k = h.time.findIndex(x=>Math.abs(Date.parse(x+":00Z") - t) < 36e5/2+1); if(k<0) return null;
+  return {t:h.time[k], temp:h.temperature_2m[k], ws:h.wind_speed_10m[k], wd:h.wind_direction_10m[k], wg:h.wind_gusts_10m[k], pp:h.precipitation_probability[k], vis:h.visibility?.[k], wc:h.weather_code?.[k]};
+}
+const fmtZT = d => `${pad(d.getUTCDate())}/${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}Z`;
+const HAZ = {TS:"Thunderstorms", TURB:"Turbulence", ICE:"Icing", MTW:"Mountain wave", VA:"Volcanic ash", TC:"Tropical cyclone", DS:"Dust storm", SS:"Sandstorm", IFR:"IFR", CONVECTIVE:"Convective", "MT OBSC":"Mtn obscuration", RDOACT_CLD:"Radioactive cloud"};
+function renderBrief(){
+  const B = BR.data; if(!B) return;
+  const roles = [[B.dep,"DEP"],[B.dest,"DEST"],...B.alts.filter(a=>B.ap[a]).map(a=>[a,"ALTN"])];
+  const cards = roles.map(([id,role])=>{
+    const a = B.ap[id]; const t = role==="DEP" ? B.etd : B.eta; const lbl = role==="DEP" ? "ETD" : "ETA";
+    const w = a.taf ? tafWindow(a.taf, new Date(+t-36e5), new Date(+t+36e5)) : null;
+    const f = fcAt(a.fc, +t); const m = a.metar; const nowCat = m?.cat || "UNK";
+    const c = w && !w.out ? catColor(w.worst) : catColor(nowCat);
+    const iso3 = ISO2_3[a.country]; const adv = iso3 && ADV[iso3];
+    const advHtml = US_LIKE.has(a.country) ? `<span style="color:var(--dim)">US domestic</span>` : adv ? `<span class="lv" style="background:${lvlColor(adv[0])}">L${adv[0]}</span> ${esc(LVL_TXT[adv[0]])} · <a href="${advLink(iso3)}" target="_blank" rel="noopener">advisory ↗</a>` : `<a href="https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html" target="_blank" rel="noopener">Check State Dept advisory ↗</a>`;
+    const faa = byIcao[id] ? faaFor(id).filter(x=>!x.gaOnly) : (S.faa?.items||[]).filter(x=>!x.gaOnly && x.arpt===(a.iata||"")).map(x=>x);
+    return `<div class="bcard" style="--c:${c}">
+      <div class="hd"><span class="role">${role}</span><span class="id">${esc(id)}</span><span class="cat" style="background:${catColor(nowCat)}" title="Current flight category">${nowCat==="UNK"?"N/A":nowCat} NOW</span>
+        <span class="nm">${esc(a.name)}${a.country?" · "+esc(a.country):""}${a.elev!=null?" · elev "+Math.round(a.elev*3.281)+" ft":""}</span></div>
+      <div class="win">${lbl} <b style="color:#fff">${fmtZT(t)}</b> ±1h — TAF: ${!a.taf?`<span style="color:var(--dim)">no TAF</span>`: w.out?`<span style="color:var(--amber)">${lbl} outside TAF validity (to ${fmtZT(a.taf.to)})</span>` : `prevailing <b style="color:${catColor(w.prev)}">${w.prev}</b>${w.temp?` · TEMPO/PROB <b style="color:${catColor(w.temp)}">${w.temp}</b>`:""}`}
+        ${f?`<br>Model: ${WMO(f.wc)[0]} ${esc(WMO(f.wc)[1])} · wind ${String(Math.round(f.wd)).padStart(3,"0")}°/${Math.round(f.ws)}G${Math.round(f.wg)}kt · ${Math.round(f.temp)}°C · precip ${f.pp??"–"}%${f.vis!=null&&f.vis<5000?` · <span style="color:var(--IFR)">vis ${Math.round(f.vis)}m</span>`:""}`:""}
+        ${faa.length?`<br><span style="color:var(--L4)">FAA: ${faa.map(x=>esc(x.label+" "+x.detail)).join(" · ")}</span>`:""}
+        ${(a.nws||[]).length?`<br><span style="color:#ff8a8a">NWS: ${a.nws.map(x=>esc(x.event)).join(" · ")}</span>`:""}
+        <br>Security: ${advHtml}</div>
+      <div class="rawbox">${esc(m?.raw||"No METAR available")}</div>
+      ${m?`<div class="fx">${fmtWind(m.wind)} · vis ${esc(m.visTxt||"—")} · cig ${fmtCeil(m)} · ${m.temp??"–"}/${m.dew??"–"}°C · ${esc(m.altTxt||"")} · ${fmtAge(m.time?Math.round((Date.now()-m.time)/6e4):null)} old</div>`:""}
+      ${a.taf?`<div class="rawbox" style="margin-top:6px;color:#9fe8b8">${esc(a.taf.raw).replace(/ (PROB\d{2} TEMPO|FM\d{6}|BECMG|TEMPO|PROB\d{2})/g,"\n  $1")}</div>${tafBars(a.taf, t)}`:""}
+    </div>`;
+  }).join("");
+  const sigHtml = !B.sigOk ? `<div class="empty">SIGMET feed unavailable right now.</div>` : B.sigs.length ? B.sigs.map(x=>{ const c = /TS|CONV|TC/.test(x.hazard)?"var(--IFR)":/VA|RDOACT/.test(x.hazard)?"var(--LIFR)":"var(--amber)";
+      return `<div class="s" style="--c:${c}"><b>${esc(HAZ[x.hazard]||x.hazard)}</b> ${esc(x.qual||"")} · ${esc(x.fir)} · ${x.base!=null||x.top!=null?`${x.base?("FL"+Math.round(x.base/100)):"SFC"}–${x.top?("FL"+Math.round(x.top/100)):"?"}`:""} · ${x.from&&x.to?fmtZT(x.from)+"–"+fmtZT(x.to):""}<pre>${esc(x.raw.slice(0,600))}</pre></div>`; }).join("")
+    : `<div class="empty" style="color:var(--green)">No SIGMETs within 100 nm of the great-circle route between ETD and ETA.</div>`;
+  $("bOut").innerHTML = `<div class="bsum"><span>ROUTE <b>${esc(B.dep)} → ${esc(B.dest)}</b>${B.alts.length?" · ALTN <b>"+esc(B.alts.join(" "))+"</b>":""}</span><span>GC DIST <b>${Math.round(B.dist).toLocaleString()} nm</b></span>
+      <span>ETD <b>${fmtZT(B.etd)}</b></span><span>ETE <b>${Math.floor(B.eteMs/36e5)}:${pad(Math.round(B.eteMs%36e5/6e4))}</b>${parseEte($("bEte").value)==null?" <span style='color:var(--mute)'>(est.)</span>":""}</span><span>ETA <b>${fmtZT(B.eta)}</b></span>
+      <span>ENROUTE SIGMETS <b style="color:${B.sigs.length?"var(--amber)":"var(--green)"}">${B.sigOk?B.sigs.length:"?"}</b></span></div>
+    <div class="bcards">${cards}</div>
+    <div class="bsig"><h3 style="font-size:10px;letter-spacing:.22em;color:var(--amber);margin:0 0 8px">SIGMETS ALONG ROUTE (100 NM CORRIDOR, ETD–ETA)</h3>${sigHtml}
+      <div style="color:var(--mute);font-size:10px;margin-top:8px">Sources: METAR/TAF api.met.no · airport data & SIGMETs aviationweather.gov · model Open-Meteo · NWS · State Dept. Situational awareness only — use your official dispatch/flight-planning briefing.</div></div>`;
+  ["bCopy","bLink","bClear"].forEach(i=>$(i).style.display="");
+  drawBriefMap();
+}
+function drawBriefMap(){
+  if(!map) return; const B = BR.data;
+  if(!BR.layer) BR.layer = L.layerGroup().addTo(map);
+  BR.layer.clearLayers(); if(!B) return;
+  L.polyline(B.route,{color:"#e879f9", weight:2.5, opacity:.9}).bindTooltip(`Briefing route ${B.dep} → ${B.dest} · ${Math.round(B.dist)} nm`,{sticky:true}).addTo(BR.layer);
+  B.sigs.forEach(x=>{ const pts = x.poly.map(c=>[c.lat, c.lon - 360*Math.round((c.lon - B.route[0][1])/360)]);
+    (pts.length>2 ? L.polygon(pts,{color:"#ef4444",weight:1.5,fillOpacity:.15}) : L.polyline(pts,{color:"#ef4444",weight:2}))
+      .bindTooltip(`SIGMET ${esc(HAZ[x.hazard]||x.hazard)} · ${esc(x.fir)}`,{sticky:true}).addTo(BR.layer); });
+  [[B.dep,"DEP"],[B.dest,"DEST"],...B.alts.map(a=>[a,"ALTN"])].forEach(([id,r])=>{ const a=B.ap[id]; if(!a||a.lat==null) return;
+    L.marker([a.lat, a.lon - 360*Math.round((a.lon - B.route[0][1])/360)],{icon:L.divIcon({className:"",html:`<div style="font:700 10px var(--mono);color:#000;background:#e879f9;padding:1px 4px;border-radius:2px;transform:translate(-50%,-150%);white-space:nowrap">${r} ${esc(id)}</div>`,iconSize:[0,0]}),interactive:false}).addTo(BR.layer); });
+  try{ map.fitBounds(L.polyline(B.route).getBounds(),{padding:[40,40], maxZoom:6}); }catch(e){}
+}
+function briefText(){
+  const B = BR.data; if(!B) return "";
+  const L1 = [`WX BRIEF ${B.dep}-${B.dest}${B.alts.length?" ALTN "+B.alts.join(" "):""}  ETD ${fmtZT(B.etd)} ETA ${fmtZT(B.eta)}  ${Math.round(B.dist)}NM`, ""];
+  [[B.dep,"DEP"],[B.dest,"DEST"],...B.alts.map(a=>[a,"ALTN"])].forEach(([id,r])=>{ const a=B.ap[id]; if(!a) return; const t=r==="DEP"?B.etd:B.eta;
+    const w = a.taf ? tafWindow(a.taf,new Date(+t-36e5),new Date(+t+36e5)) : null;
+    L1.push(`${r} ${id} ${a.name}`); L1.push(`  NOW ${a.metar?.cat||"N/A"} | ${r==="DEP"?"ETD":"ETA"}±1H ${!w?"NO TAF":w.out?"OUTSIDE TAF":w.prev+(w.temp?" (TEMPO/PROB "+w.temp+")":"")}`);
+    L1.push(`  ${a.metar?.raw||"NO METAR"}`); if(a.taf) L1.push(`  ${a.taf.raw}`); L1.push(""); });
+  L1.push(`SIGMETS ON ROUTE: ${B.sigOk?B.sigs.length:"N/A"}`); B.sigs.forEach(x=>L1.push(`  ${x.hazard} ${x.fir} ${x.from?fmtZT(x.from):""}-${x.to?fmtZT(x.to):""}`));
+  L1.push("", "Source: ATLAS WX OPS (unofficial) — not for dispatch.");
+  return L1.join("\n");
+}
+$("bForm").onsubmit = e=>{ e.preventDefault();
+  const up = id=>$(id).value.trim().toUpperCase();
+  const alts = up("bAlt").split(/[\s,;]+/).filter(Boolean).slice(0,4);
+  runBrief(up("bDep"), up("bDest"), alts, $("bEtd").value.trim(), $("bEte").value.trim());
+};
+$("bCopy").onclick = async ()=>{ try{ await navigator.clipboard.writeText(briefText()); $("bCopy").textContent="COPIED ✓"; setTimeout(()=>$("bCopy").textContent="COPY BRIEFING",1500);}catch(e){ alert("Copy failed — select the text manually."); } };
+$("bLink").onclick = async ()=>{ try{ await navigator.clipboard.writeText(location.href); $("bLink").textContent="LINK COPIED ✓"; setTimeout(()=>$("bLink").textContent="COPY LINK",1500);}catch(e){} };
+$("bClear").onclick = ()=>{ BR.data=null; if(BR.layer) BR.layer.clearLayers(); $("bOut").innerHTML=`<div class="empty">Enter a departure and destination to build a briefing.</div>`; ["bCopy","bLink","bClear"].forEach(i=>$(i).style.display="none"); try{ history.replaceState(null,"",location.pathname+location.search); }catch(e){} };
+(function restoreBrief(){
+  let v=null; const h=decodeURIComponent(location.hash||""); const m=h.match(/^#brief=([^,]*),([^,]*),([^,]*),([^,]*),?([^,]*)/);
+  if(m) v={dep:m[1],dest:m[2],alts:m[3]?m[3].split("-"):[],etdV:m[4],eteV:m[5]};
+  else { try{ v=JSON.parse(localStorage.getItem("wxops.brief")||"null"); }catch(e){} }
+  if(!v) return;
+  $("bDep").value=v.dep||""; $("bDest").value=v.dest||""; $("bAlt").value=(v.alts||[]).join(", "); $("bEtd").value=v.etdV||""; $("bEte").value=v.eteV||"";
+  if(m && v.dep && v.dest) setTimeout(()=>runBrief(v.dep.toUpperCase(), v.dest.toUpperCase(), (v.alts||[]).map(x=>x.toUpperCase()), v.etdV, v.eteV), 1500);
+})();
 
 /* ---------- clocks ---------- */
 const fmtTZ = tz => new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",timeZone:tz});
