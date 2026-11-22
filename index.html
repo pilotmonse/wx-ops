@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ATLAS WX OPS · Global Station Weather & Security</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --bg:#05080d; --panel:#0a1018; --panel2:#0e1621; --line:#1a2635; --line2:#243447;
+  --txt:#c9d6e3; --dim:#6b7f95; --mute:#3d5066;
+  --amber:#ffb000; --cyan:#29d3ff; --green:#22e07a;
+  --VFR:#22c55e; --MVFR:#3b82f6; --IFR:#ef4444; --LIFR:#d946ef; --UNK:#4b5563;
+  --L1:#22c55e; --L2:#eab308; --L3:#f97316; --L4:#ef4444;
+  --mono: "JetBrains Mono","SF Mono","Cascadia Mono",Menlo,Consolas,ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:12px}
+body{background-image:radial-gradient(circle at 20% -10%,#0d1b2c 0,transparent 50%),linear-gradient(transparent 97%,rgba(41,211,255,.025) 97%);background-size:auto,100% 4px}
+a{color:var(--cyan);text-decoration:none} a:hover{text-decoration:underline}
+button{font-family:var(--mono)}
+/* header */
+.top{display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--line);background:linear-gradient(#0b121c,#070b11);position:sticky;top:0;z-index:900;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.brand h1{font-size:14px;letter-spacing:.18em;margin:0;color:#fff;font-weight:700}
+.brand small{color:var(--dim);letter-spacing:.12em}
+.clocks{display:flex;gap:18px;margin-left:auto;flex-wrap:wrap}
+.clk{text-align:right}
+.clk b{display:block;font-size:18px;color:var(--amber);letter-spacing:.06em;font-variant-numeric:tabular-nums}
+.clk span{color:var(--dim);font-size:10px;letter-spacing:.15em}
+.status{display:flex;gap:10px;color:var(--dim);font-size:10px;letter-spacing:.08em;flex-wrap:wrap}
+.status i{font-style:normal;padding:2px 6px;border:1px solid var(--line2);border-radius:2px}
+.status i.ok{color:var(--green);border-color:#1d4d33}.status i.err{color:var(--IFR);border-color:#5b2020}.status i.wait{color:var(--amber)}
+/* ticker */
+.ticker{overflow:hidden;white-space:nowrap;border-bottom:1px solid var(--line);background:#04070b;height:26px;line-height:26px}
+.ticker .track{display:inline-block;animation:tick 180s linear infinite;padding-left:100%}
+.ticker:hover .track{animation-play-state:paused}
+@keyframes tick{to{transform:translateX(-100%)}}
+.tk{margin-right:28px;cursor:pointer}.tk b{color:#fff}.tk em{font-style:normal;padding:0 4px;border-radius:2px;margin:0 6px;color:#000;font-weight:700}
+/* layout */
+.wrap{padding:14px 16px 40px;max-width:1800px;margin:0 auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);padding:10px 12px;position:relative;cursor:pointer;transition:border-color .15s}
+.kpi:hover,.kpi.on{border-color:var(--cyan)}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--cyan))}
+.kpi .l{color:var(--dim);font-size:10px;letter-spacing:.16em}
+.kpi .v{font-size:28px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;line-height:1.2}
+.kpi .s{color:var(--dim);font-size:10px}
+.grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);gap:12px;margin-bottom:12px}
+@media(max-width:1000px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+.ph{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel2)}
+.ph h2{margin:0;font-size:11px;letter-spacing:.2em;color:var(--amber);font-weight:700}
+.ph .sp{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:transparent;border:1px solid var(--line2);color:var(--dim);padding:3px 8px;font-size:10px;letter-spacing:.1em;cursor:pointer}
+.chip.on,.chip:hover{color:#000;background:var(--cyan);border-color:var(--cyan)}
+#map{height:500px;background:#03060a}
+.mapwrap{position:relative}
+.wxbar{display:flex;flex-wrap:wrap;gap:6px 18px;padding:7px 12px;border-bottom:1px solid var(--line);background:#070c13;align-items:center}
+.wxbar .grp{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.wxbar label{color:var(--dim);font-size:9px;letter-spacing:.16em;margin-right:4px}
+.wxbar .ctl{margin-left:auto}
+.wxbar #rvTime{color:var(--amber);font-size:11px;min-width:92px;text-align:center}
+.wxbar input[type=range]{width:90px;accent-color:var(--cyan)}
+.radleg{position:absolute;left:10px;bottom:10px;z-index:500;background:rgba(5,8,13,.85);border:1px solid var(--line2);padding:5px 8px;display:none;align-items:center;gap:6px;font-size:9px;color:var(--dim);letter-spacing:.1em}
+.radleg i{display:block;width:120px;height:8px;background:linear-gradient(90deg,#88ddee,#0099cc,#0077aa,#ffee00,#ffaa00,#ff4400,#c10000,#ff00ff)}
+.radleg b{font-weight:400;color:var(--txt);margin-left:6px}
+.leaflet-container{background:#03060a;font-family:var(--mono)}
+.leaflet-tooltip{background:#0a1018;color:var(--txt);border:1px solid var(--line2);font-family:var(--mono);font-size:11px;box-shadow:none}
+.leaflet-tooltip-top:before{border-top-color:var(--line2)}
+.legend{display:flex;gap:12px;padding:6px 12px;border-top:1px solid var(--line);color:var(--dim);font-size:10px;flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;background:var(--c)}
+.watch{overflow:auto;max-height:480px}
+.w{display:flex;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);cursor:pointer;align-items:flex-start}
+.w:hover{background:#0f1a27}
+.w .tag{flex:none;font-size:10px;font-weight:700;padding:2px 5px;color:#000;min-width:44px;text-align:center}
+.w .t{flex:1;min-width:0}.w .t b{color:#fff}.w .t div{color:var(--dim);font-size:11px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty{padding:20px;color:var(--dim);text-align:center}
+/* table */
+.tools{display:flex;gap:8px;align-items:center}
+.tools input{background:#04070b;border:1px solid var(--line2);color:var(--txt);font-family:var(--mono);padding:4px 8px;font-size:11px;width:150px}
+.tbl{overflow:auto}
+table{border-collapse:collapse;width:100%;min-width:1100px}
+th{position:sticky;top:0;background:var(--panel2);color:var(--dim);font-weight:400;font-size:10px;letter-spacing:.12em;text-align:left;padding:7px 8px;border-bottom:1px solid var(--line2);cursor:pointer;white-space:nowrap}
+th:hover{color:var(--cyan)}
+td{padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+tr.r{cursor:pointer} tr.r:hover td{background:#0f1a27}
+td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
+.cat{display:inline-block;min-width:44px;text-align:center;font-weight:700;color:#000;padding:1px 4px;font-size:11px}
+.lv{display:inline-block;font-weight:700;padding:1px 6px;color:#000;font-size:11px}
+.raw{color:var(--dim);max-width:380px;overflow:hidden;text-overflow:ellipsis;font-size:11px}
+.d3{display:flex;gap:10px}.d3 span{display:inline-flex;gap:3px;align-items:center}.d3 small{color:var(--dim)}
+.stale{color:var(--amber)}
+.taf-mini{display:flex;height:10px;width:120px;border:1px solid var(--line2)}
+.taf-mini i{flex:1}
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;display:none}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(760px,100vw);background:#070c13;border-left:1px solid var(--line2);z-index:1001;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column}
+.drawer.open{transform:none}.drawer.open+.scrim,.scrim.on{display:block}
+.dh{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:center;background:linear-gradient(#0d1622,#070c13)}
+.dh .big{font-size:26px;font-weight:700;color:#fff;letter-spacing:.06em}
+.dh .sub{color:var(--dim)}
+.dh .x{margin-left:auto;background:none;border:1px solid var(--line2);color:var(--txt);width:32px;height:32px;cursor:pointer;font-size:16px}
+.db{overflow:auto;padding:14px 16px 40px;flex:1}
+.sec{margin-bottom:18px}
+.sec h3{font-size:10px;letter-spacing:.22em;color:var(--amber);margin:0 0 8px;font-weight:700;display:flex;gap:8px;align-items:center}
+.sec h3::after{content:"";flex:1;height:1px;background:var(--line)}
+.rawbox{background:#03060a;border:1px solid var(--line);padding:10px;color:var(--green);white-space:pre-wrap;word-break:break-word;line-height:1.55;font-size:12px}
+.dec{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:8px}
+.dec div{background:var(--panel);border:1px solid var(--line);padding:6px 8px}
+.dec label{display:block;color:var(--dim);font-size:9px;letter-spacing:.15em}
+.dec b{color:#fff;font-size:14px}
+.tl{margin-top:8px}
+.tl .row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.tl .row>span{width:74px;color:var(--dim);font-size:9px;letter-spacing:.12em;flex:none}
+.tl .bar{display:flex;flex:1;height:16px;border:1px solid var(--line2)}
+.tl .bar i{flex:1;border-right:1px solid rgba(0,0,0,.35)}
+.tl .ax{display:flex;margin-left:82px;color:var(--dim);font-size:9px;justify-content:space-between}
+.days{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.day{background:var(--panel);border:1px solid var(--line);padding:10px}
+.day .dn{color:var(--dim);font-size:10px;letter-spacing:.15em}
+.day .ico{font-size:26px;margin:4px 0}
+.day .tp{font-size:16px;color:#fff}.day .tp small{color:var(--dim);font-size:11px}
+.day .mt{color:var(--dim);font-size:11px;margin-top:4px;line-height:1.5}
+#hchart{width:100%;height:170px;display:block;background:#03060a;border:1px solid var(--line)}
+.ctip{position:absolute;pointer-events:none;background:#0a1018;border:1px solid var(--line2);padding:6px 8px;font-size:11px;display:none;z-index:5;white-space:nowrap}
+.adv{border:1px solid var(--line);border-left:4px solid var(--c);background:var(--panel);padding:10px 12px}
+.adv .h{display:flex;gap:10px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+.adv p{margin:6px 0;color:var(--txt);line-height:1.55}
+.adv .m{color:var(--dim);font-size:10px}
+.alert{border:1px solid #5b2020;background:#1a0a0a;padding:8px 10px;margin-bottom:6px}
+.alert b{color:#ff8a8a}
+.news a{display:block;padding:8px 0;border-bottom:1px solid var(--line);color:var(--txt)}
+.news a:hover{color:var(--cyan);text-decoration:none}
+.news small{color:var(--dim);display:block;margin-top:2px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.btn{border:1px solid var(--line2);padding:5px 10px;color:var(--cyan);font-size:11px}
+.foot{color:var(--mute);font-size:10px;line-height:1.6;margin-top:16px}
+.spin{color:var(--amber)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><span class="dot"></span><div><h1>ATLAS WX OPS</h1><small>GLOBAL STATION WEATHER · FLT CAT · SECURITY · UNOFFICIAL</small></div></div>
+  <div class="status" id="status"></div>
+  <div class="clocks">
+    <div class="clk"><b id="cZ">--:--:--</b><span>ZULU / UTC</span></div>
+    <div class="clk"><b id="cMIA">--:--</b><span>MIAMI</span></div>
+    <div class="clk"><b id="cSJU">--:--</b><span>SAN JUAN</span></div>
+    <div class="clk"><b id="cANC">--:--</b><span>ANCHORAGE</span></div>
+  </div>
+</header>
+<div class="ticker"><div class="track" id="ticker">Loading station feed…</div></div>
+
+<main class="wrap">
+  <section class="kpis" id="kpis"></section>
+
+  <section class="grid">
+    <div class="panel">
+      <div class="ph"><h2>NETWORK MAP · CURRENT FLIGHT CATEGORY</h2>
+        <div class="sp" id="regionChips"></div></div>
+      <div class="wxbar" id="wxbar">
+        <div class="grp"><label>SATELLITE IR</label>
+          <button class="chip on" data-sat="">OFF</button><button class="chip" data-sat="global">GLOBAL</button><button class="chip" data-sat="goese">GOES-E</button><button class="chip" data-sat="goesw">GOES-W</button><button class="chip" data-sat="himawari">HIMAWARI</button><button class="chip" data-sat="meteosat">METEOSAT</button></div>
+        <div class="grp"><label>PRECIP</label>
+          <button class="chip on" data-rad="">OFF</button><button class="chip" data-rad="rv">RADAR LOOP</button><button class="chip" data-rad="nexrad">US NEXRAD</button><button class="chip" data-rad="imerg">SAT PRECIP</button></div>
+        <div class="grp ctl"><button class="chip" id="rvPlay" title="Play / pause radar loop">❚❚</button><span id="rvTime">—</span>
+          <label>OPACITY</label><input type="range" id="wxOp" min="20" max="100" value="85"></div>
+      </div>
+      <div class="mapwrap"><div id="map"></div>
+        <div class="radleg" id="radleg"><span>LIGHT</span><i></i><span>HEAVY</span><b id="radsrc"></b></div></div>
+      <div class="legend">
+        <span style="--c:var(--VFR)">VFR  CIG &gt;3000 &amp; VIS &gt;5SM</span>
+        <span style="--c:var(--MVFR)">MVFR  1000–3000 / 3–5SM</span>
+        <span style="--c:var(--IFR)">IFR  500–999 / 1–&lt;3SM</span>
+        <span style="--c:var(--LIFR)">LIFR  &lt;500 / &lt;1SM</span>
+        <span style="--c:var(--UNK)">NO DATA</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph"><h2>WATCHLIST</h2><div class="sp"><span style="color:var(--dim);font-size:10px">IFR/LIFR · FAA GS/GDP/DELAYS · TAF ≤ IFR · GUSTS ≥ 35KT · ADVISORY L3–4</span></div></div>
+      <div class="watch" id="watch"><div class="empty spin">Scanning…</div></div>
+    </div>
+  </section>
+
+  <section class="panel" id="faaPanel" style="margin-bottom:12px">
+    <div class="ph"><h2>FAA NAS STATUS · ATC GROUND STOPS · GROUND DELAY PROGRAMS · DELAYS</h2>
+      <div class="sp"><span id="faaUpd" style="color:var(--dim);font-size:10px"></span>
+        <button class="chip" id="faaGa" title="Show GA-only (non-scheduled transient) closures">GA CLOSURES</button>
+        <a class="chip" href="https://nasstatus.faa.gov/" target="_blank" rel="noopener" style="text-decoration:none">NASSTATUS.FAA.GOV ↗</a></div></div>
+    <div class="tbl"><table style="min-width:760px">
+      <thead><tr><th style="cursor:default">PROGRAM</th><th style="cursor:default">ARPT</th><th style="cursor:default">REASON</th><th style="cursor:default">DETAIL</th><th style="cursor:default">NETWORK</th></tr></thead>
+      <tbody id="faaTb"><tr><td colspan="5" class="empty spin">Loading FAA NAS status…</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="panel">
+    <div class="ph"><h2>STATION BOARD</h2>
+      <div class="sp tools"><input id="q" placeholder="Search ICAO / city…" autocomplete="off"><button class="chip" id="refresh">⟳ REFRESH</button></div></div>
+    <div class="tbl"><table>
+      <thead><tr>
+        <th data-k="icao">STATION</th><th data-k="region">RGN</th><th data-k="cat">CAT</th><th data-k="age">OBS</th>
+        <th data-k="wind">WIND</th><th data-k="vis">VIS</th><th data-k="ceil">CIG</th><th data-k="temp">T/DP</th><th data-k="alt">ALTM</th>
+        <th data-k="atc">FAA ATC</th><th data-k="taf">TAF 30H</th><th data-k="gust">3-DAY OUTLOOK</th><th data-k="lvl">STATE DEPT</th><th>METAR</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table></div>
+  </section>
+
+  <div class="foot">
+    Data: METAR/TAF — Norwegian Meteorological Institute (api.met.no, relaying WMO/ICAO reports) · 3-day &amp; hourly forecast — Open-Meteo (open-meteo.com, model blend) · US watches/warnings — NWS api.weather.gov · ATC ground stops/GDPs/delays — FAA NAS Status (nasstatus.faa.gov, relayed via Jina Reader r.jina.ai) · Travel advisories — U.S. Department of State (travel.state.gov) snapshot of 22 Nov 2026, checked live against the State Dept RSS on load · News — Bing News RSS (via rss2json) with GDELT fallback · Map © MapTiler © OpenStreetMap contributors (CARTO fallback) · Satellite IR — NASA GIBS (GOES/Himawari) &amp; EUMETSAT · Radar — RainViewer (global mosaic), NEXRAD via Iowa Environmental Mesonet · Satellite precipitation — NASA IMERG.<br>
+    Unofficial personal project — not affiliated with, endorsed by, or an official tool of Atlas Air Worldwide.<br>
+    Situational awareness only. Not for flight planning or dispatch — always use official briefing sources (company dispatch, FAA/1800wxbrief, local AIS). Station list is a representative Atlas Air network sample; edit the STATIONS array in this file to add or remove airports.
+  </div>
+</main>
+
+<aside class="drawer" id="drawer">
+  <div class="dh"><div><div class="big" id="dIcao">—</div><div class="sub" id="dSub"></div></div>
+    <div class="clk" style="margin-left:auto"><b id="dLcl">--:--</b><span>LOCAL</span></div>
+    <button class="x" id="dClose" aria-label="Close">✕</button></div>
+  <div class="db" id="dBody"></div>
+</aside>
+<div class="scrim" id="scrim"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   STATIONS — representative Atlas Air network (edit freely)
+   [ICAO, IATA, City, Country, ISO3 (State Dept), GDELT country, lat, lon, region, note]
+   ============================================================ */
+const STATIONS = [
+ ["KMIA","MIA","Miami","United States","usa","US",25.795,-80.290,"AMER","Atlas base · LatAm gateway"],
+ ["TJSJ","SJU","San Juan","Puerto Rico","usa","RQ",18.439,-66.002,"AMER",""],
+ ["KJFK","JFK","New York","United States","usa","US",40.640,-73.779,"AMER","Atlas base"],
+ ["KORD","ORD","Chicago","United States","usa","US",41.978,-87.905,"AMER","Atlas base"],
+ ["KLAX","LAX","Los Angeles","United States","usa","US",33.942,-118.408,"AMER","Atlas base"],
+ ["KCVG","CVG","Cincinnati","United States","usa","US",39.049,-84.668,"AMER","Amazon Air hub"],
+ ["KILN","ILN","Wilmington OH","United States","usa","US",39.428,-83.792,"AMER","Cargo hub"],
+ ["KONT","ONT","Ontario CA","United States","usa","US",34.056,-117.601,"AMER",""],
+ ["KIAH","IAH","Houston","United States","usa","US",29.984,-95.341,"AMER",""],
+ ["KDFW","DFW","Dallas–Fort Worth","United States","usa","US",32.897,-97.038,"AMER",""],
+ ["KATL","ATL","Atlanta","United States","usa","US",33.640,-84.427,"AMER",""],
+ ["KSEA","SEA","Seattle","United States","usa","US",47.450,-122.309,"AMER",""],
+ ["KRFD","RFD","Rockford","United States","usa","US",42.195,-89.097,"AMER",""],
+ ["KDOV","DOV","Dover AFB","United States","usa","US",39.130,-75.466,"AMER","AMC"],
+ ["PANC","ANC","Anchorage","United States","usa","US",61.174,-149.996,"AMER","Atlas base · transpacific tech stop"],
+ ["PHNL","HNL","Honolulu","United States","usa","US",21.319,-157.922,"APAC",""],
+ ["PGUM","GUM","Guam","Guam","usa","GQ",13.484,144.796,"APAC",""],
+ ["MMMX","MEX","Mexico City","Mexico","mex","MX",19.436,-99.072,"AMER",""],
+ ["MMGL","GDL","Guadalajara","Mexico","mex","MX",20.522,-103.311,"AMER",""],
+ ["MPTO","PTY","Panama City","Panama","pan","PM",9.071,-79.383,"AMER",""],
+ ["SKBO","BOG","Bogotá","Colombia","col","CO",4.701,-74.147,"AMER",""],
+ ["SEQM","UIO","Quito","Ecuador","ecu","EC",-0.113,-78.359,"AMER","Flower ops"],
+ ["SPJC","LIM","Lima","Peru","per","PE",-12.022,-77.114,"AMER",""],
+ ["SCEL","SCL","Santiago","Chile","chl","CI",-33.393,-70.786,"AMER",""],
+ ["SBKP","VCP","Campinas","Brazil","bra","BR",-23.007,-47.134,"AMER",""],
+ ["SBGR","GRU","São Paulo","Brazil","bra","BR",-23.432,-46.469,"AMER",""],
+ ["SAEZ","EZE","Buenos Aires","Argentina","arg","AR",-34.822,-58.536,"AMER",""],
+ ["EGSS","STN","London Stansted","United Kingdom","gbr","UK",51.885,0.235,"EUR",""],
+ ["EDDF","FRA","Frankfurt","Germany","deu","GM",50.033,8.571,"EUR",""],
+ ["EDDP","LEJ","Leipzig","Germany","deu","GM",51.424,12.236,"EUR","DHL hub"],
+ ["ETAR","RMS","Ramstein AB","Germany","deu","GM",49.437,7.600,"EUR","AMC"],
+ ["EBLG","LGG","Liège","Belgium","bel","BE",50.637,5.443,"EUR","Cargo hub"],
+ ["EHAM","AMS","Amsterdam","Netherlands","nld","NL",52.309,4.764,"EUR",""],
+ ["LFPG","CDG","Paris","France","fra","FR",49.010,2.548,"EUR",""],
+ ["LIMC","MXP","Milan","Italy","ita","IT",45.630,8.723,"EUR",""],
+ ["LEZG","ZAZ","Zaragoza","Spain","esp","SP",41.666,-1.042,"EUR",""],
+ ["LTFM","IST","Istanbul","Türkiye","tur","TU",41.262,28.742,"EUR",""],
+ ["OMDW","DWC","Dubai World Central","United Arab Emirates","are","AE",24.896,55.161,"MEAF",""],
+ ["OMDB","DXB","Dubai","United Arab Emirates","are","AE",25.253,55.364,"MEAF",""],
+ ["OTHH","DOH","Doha","Qatar","qat","QA",25.273,51.608,"MEAF",""],
+ ["OBBI","BAH","Bahrain","Bahrain","bhr","BA",26.271,50.634,"MEAF",""],
+ ["OKBK","KWI","Kuwait City","Kuwait","kwt","KU",29.227,47.969,"MEAF",""],
+ ["HKJK","NBO","Nairobi","Kenya","ken","KE",-1.319,36.928,"MEAF",""],
+ ["FAOR","JNB","Johannesburg","South Africa","zaf","SF",-26.139,28.246,"MEAF",""],
+ ["DNMM","LOS","Lagos","Nigeria","nga","NI",6.577,3.321,"MEAF",""],
+ ["RJAA","NRT","Tokyo Narita","Japan","jpn","JA",35.765,140.386,"APAC",""],
+ ["RJBB","KIX","Osaka Kansai","Japan","jpn","JA",34.427,135.244,"APAC",""],
+ ["RKSI","ICN","Seoul Incheon","South Korea","kor","KS",37.463,126.441,"APAC",""],
+ ["VHHH","HKG","Hong Kong","Hong Kong","hkg","HK",22.309,113.915,"APAC",""],
+ ["RCTP","TPE","Taipei","Taiwan","twn","TW",25.078,121.233,"APAC",""],
+ ["ZSPD","PVG","Shanghai","China","chn","CH",31.143,121.805,"APAC",""],
+ ["ZGGG","CAN","Guangzhou","China","chn","CH",23.392,113.299,"APAC",""],
+ ["RPLC","CRK","Clark","Philippines","phl","RP",15.186,120.560,"APAC",""],
+ ["VTBS","BKK","Bangkok","Thailand","tha","TH",13.690,100.750,"APAC",""],
+ ["WSSS","SIN","Singapore","Singapore","sgp","SN",1.359,103.989,"APAC",""],
+ ["WMKK","KUL","Kuala Lumpur","Malaysia","mys","MY",2.746,101.710,"APAC",""],
+ ["VIDP","DEL","Delhi","India","ind","IN",28.566,77.103,"APAC",""],
+ ["VABB","BOM","Mumbai","India","ind","IN",19.089,72.868,"APAC",""],
+ ["YSSY","SYD","Sydney","Australia","aus","AS",-33.946,151.177,"APAC",""],
+ ["NZAA","AKL","Auckland","New Zealand","nzl","NZ",-37.008,174.792,"APAC",""],
+].map(a=>({icao:a[0],iata:a[1],city:a[2],country:a[3],iso:a[4],fips:a[5],lat:a[6],lon:a[7],region:a[8],note:a[9]}));
+
+/* MapTiler API key (free plan) — manage at https://cloud.maptiler.com/account/keys/
+   Leave "" to use the keyless CARTO basemap. */
+const MAPTILER_KEY = "zsqTmJaZFNpZrAcuh9hx";
+
+/* U.S. State Dept Travel Advisories — snapshot from travel.state.gov RSS, 22 Nov 2026 */
+const ADV_SNAPSHOT_DATE = "2026-11-22";
+const ADV = {
+ mex:[2,"2026-05-29","Exercise increased caution in Mexico due to terrorism, crime, and kidnapping. Some areas have increased risk."],
+ pan:[2,"2026-08-19","Exercise increased caution in Panama due to crime. Some areas (Mosquito Gulf, Darién) have increased risk."],
+ col:[3,"2026-03-31","Reconsider travel to Colombia due to crime, terrorism, civil unrest, kidnapping, and natural disasters."],
+ ecu:[2,"2026-08-18","Exercise increased caution in Ecuador due to crime, terrorism, unrest, and kidnapping. Some areas have increased risk."],
+ per:[2,"2026-09-04","Exercise increased caution in Peru due to crime, unrest, kidnapping, and terrorism. Some areas have increased risk."],
+ chl:[2,"2026-08-19","Exercise increased caution in Chile due to crime, unrest, and health."],
+ bra:[2,"2026-08-31","Exercise increased caution in Brazil due to crime and kidnapping. Some areas have increased risk."],
+ arg:[1,"2026-07-10","Exercise normal precautions in Argentina."],
+ gbr:[2,"2026-09-09","Exercise increased caution in the United Kingdom due to terrorism."],
+ deu:[2,"2025-05-13","Exercise increased caution in Germany due to terrorism."],
+ bel:[2,"2026-07-23","Exercise increased caution in Belgium due to crime, terrorism, and unrest."],
+ nld:[2,"2026-08-18","Exercise increased caution in the Netherlands due to terrorism."],
+ fra:[2,"2026-10-21","Exercise increased caution in France due to terrorism and unrest. Violence and rioting have recently occurred and may continue."],
+ ita:[2,"2026-09-10","Exercise increased caution in Italy due to terrorism."],
+ esp:[2,"2026-08-01","Exercise increased caution in Spain due to terrorism and unrest."],
+ tur:[2,"2026-06-09","Exercise increased caution in Türkiye due to terrorism, armed conflict, and arbitrary detentions. Some areas have increased risk."],
+ are:[3,"2026-10-23","Reconsider travel to the United Arab Emirates due to terrorism and armed conflict. USG employees need special authorization for some sites."],
+ qat:[3,"2026-10-23","Reconsider travel to Qatar due to risk of armed conflict. USG employees need special authorization to travel to Qatar."],
+ bhr:[3,"2026-10-23","Reconsider travel to Bahrain due to terrorism and armed conflict. USG employees need special authorization to travel to Bahrain."],
+ kwt:[3,"2026-10-23","Reconsider travel to Kuwait due to the threat of armed conflict, landmines, and crime. Limited ability to offer services to U.S. citizens."],
+ ken:[3,"2026-10-19","Reconsider travel to Kenya due to health, crime, kidnapping, terrorism, unrest, and traffic safety. CDC Travel Health Notice (Ebola) in effect."],
+ zaf:[2,"2025-05-27","Exercise increased caution in South Africa due to crime, terrorism, unrest, and kidnapping."],
+ nga:[3,"2026-06-12","Reconsider travel to Nigeria due to crime, terrorism, unrest, kidnapping, and inconsistent health care. Some areas have increased risk."],
+ jpn:[1,"2025-05-15","Exercise normal precautions in Japan."],
+ kor:[1,"2025-05-28","Exercise normal precautions in South Korea. Large demonstrations may occur with little notice."],
+ hkg:[2,"2026-09-04","Exercise increased caution in Hong Kong SAR due to the arbitrary enforcement of local laws."],
+ twn:[1,"2025-11-25","Exercise normal precautions in Taiwan. Risk of natural disasters (earthquakes, typhoons, flooding)."],
+ chn:[2,"2026-10-19","Exercise increased caution in mainland China due to arbitrary enforcement of local laws, exit bans, and risk of wrongful detention."],
+ phl:[2,"2026-09-01","Exercise increased caution in the Philippines due to crime, terrorism, unrest, and kidnapping. Some areas have increased risk."],
+ tha:[1,"2026-07-07","Exercise normal precautions in Thailand. Increased caution near the Thai–Cambodian border and far south."],
+ sgp:[1,"2026-03-09","Exercise normal precautions in Singapore."],
+ mys:[1,"2026-02-22","Exercise normal precautions in Malaysia. Increased caution off eastern Sabah (kidnapping)."],
+ ind:[2,"2025-06-16","Exercise increased caution in India due to crime and terrorism. Some areas have increased risk."],
+ aus:[1,"2026-08-18","Exercise normal precautions in Australia."],
+ nzl:[1,"2026-04-29","Exercise normal precautions in New Zealand."],
+};
+const LVL_TXT = {1:"Exercise Normal Precautions",2:"Exercise Increased Caution",3:"Reconsider Travel",4:"Do Not Travel"};
+const advLink = iso => `https://travel.state.gov/content/tsg_aem/us/en/home/international-travel/travel-advisories/destination.${iso}.html`;
+
+const REGIONS = {ALL:"ALL",AMER:"AMERICAS",EUR:"EUROPE",MEAF:"MIDEAST/AFRICA",APAC:"ASIA-PACIFIC"};
+const CATS = ["VFR","MVFR","IFR","LIFR"];
+const CAT_RANK = {VFR:0,MVFR:1,IFR:2,LIFR:3,UNK:-1};
+
+/* ---------- state ---------- */
+const S = {metar:{}, taf:{}, fc:{}, faa:null, region:"ALL", catFilter:null, q:"", sort:{k:"cat",dir:-1}, src:{metar:"wait",taf:"wait",fc:"wait",adv:"wait",faa:"wait"}, advLive:{}};
+const byIcao = Object.fromEntries(STATIONS.map(s=>[s.icao,s]));
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const catColor = c => `var(--${c||"UNK"})`;
+const lvlColor = l => l ? `var(--L${l})` : "var(--UNK)";
+function flightCat(visSM, ceilFt){
+  if(visSM==null && ceilFt==null) return "UNK";
+  const v = visSM ?? 99, c = ceilFt ?? 99999;
+  if(c<500 || v<1) return "LIFR";
+  if(c<1000 || v<3) return "IFR";
+  if(c<=3000 || v<=5) return "MVFR";
+  return "VFR";
+}
+function worse(a,b){ return (CAT_RANK[a]??-1) >= (CAT_RANK[b]??-1) ? a : b; }
+
+/* parse a visibility token list starting at index i; returns {sm, txt, n} or null */
+function parseVis(tok, i){
+  const t = tok[i]; if(!t) return null;
+  if(t==="CAVOK") return {sm:10,txt:"CAVOK",n:1,cavok:true};
+  if(/^\d{4}$/.test(t) && !/^\d{4}\/\d{4}$/.test(t)){ const m=+t; return {sm: m>=9999?10:m/1609.34, txt: m>=9999?"10km+":m+"m", n:1}; }
+  if(/^\d{4}NDV$/.test(t)){ const m=+t.slice(0,4); return {sm:m>=9999?10:m/1609.34, txt:(m>=9999?"10km+":m+"m"), n:1}; }
+  let m;
+  if((m=t.match(/^([PM])?(\d+)SM$/))) return {sm:+m[2]+(m[1]==="P"?0.5:0), txt:t, n:1};
+  if((m=t.match(/^([PM])?(\d)\/(\d{1,2})SM$/))) return {sm:+m[2]/+m[3], txt:t, n:1};
+  if(/^\d$/.test(t) && tok[i+1] && (m=tok[i+1].match(/^(\d)\/(\d{1,2})SM$/))) return {sm:+t + (+m[1]/+m[2]), txt:t+" "+tok[i+1], n:2};
+  return null;
+}
+/* parse weather elements from a token list (body without trends) */
+function parseElems(tok){
+  const r = {vis:null, visTxt:null, ceil:null, clouds:[], wx:[], wind:null, cavok:false};
+  for(let i=0;i<tok.length;i++){
+    const t = tok[i]; let m;
+    if((m=t.match(/^(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?(KT|MPS|KMH)$/))){
+      let k = m[4]==="MPS"?1.944:m[4]==="KMH"?0.54:1;
+      r.wind = {dir:m[1], spd:Math.round(+m[2]*k), gust:m[3]?Math.round(+m[3]*k):null, txt:t};
+      continue;
+    }
+    if(r.vis==null){ const v=parseVis(tok,i); if(v){ r.vis=v.sm; r.visTxt=v.txt; if(v.cavok){r.cavok=true;} i+=v.n-1; continue; } }
+    if((m=t.match(/^(FEW|SCT|BKN|OVC|VV)(\d{3}|\/\/\/)(CB|TCU)?/))){
+      const h = m[2]==="///"?null:+m[2]*100;
+      r.clouds.push({cov:m[1],h,type:m[3]||""});
+      if((m[1]==="BKN"||m[1]==="OVC"||m[1]==="VV") && h!=null && (r.ceil==null || h<r.ceil)) r.ceil=h;
+      continue;
+    }
+    if(/^(SKC|CLR|NSC|NCD)$/.test(t)){ r.clouds.push({cov:t,h:null,type:""}); continue; }
+    if(/^(\+|-|VC)?(MI|PR|BC|DR|BL|SH|TS|FZ)?(DZ|RA|SN|SG|IC|PL|GR|GS|UP|BR|FG|FU|VA|DU|SA|HZ|PY|PO|SQ|FC|SS|DS)+$/.test(t) || /^(\+|-|VC)?TS$/.test(t)) r.wx.push(t);
+  }
+  if(r.cavok) r.clouds = [];
+  return r;
+}
+function obsDate(ddhhmm){
+  const now = new Date(); const d=+ddhhmm.slice(0,2), h=+ddhhmm.slice(2,4), mi=+ddhhmm.slice(4,6);
+  let dt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), d, h, mi));
+  if(dt - now > 2*864e5) dt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth()-1, d, h, mi));
+  if(now - dt > 20*864e5) dt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth()+1, d, h, mi));
+  return dt;
+}
+function parseMetar(raw){
+  const clean = raw.replace(/=\s*$/,"").replace(/\s+/g," ").trim();
+  let tok = clean.split(" ");
+  while(tok[0]==="METAR"||tok[0]==="SPECI") tok.shift();
+  const icao = tok[0]; const tm = (tok[1]||"").match(/^(\d{6})Z$/);
+  const time = tm ? obsDate(tm[1]) : null;
+  let body = tok.slice(2);
+  const cut = body.findIndex(t=>/^(RMK|TEMPO|BECMG|NOSIG)$/.test(t));
+  if(cut>=0) body = body.slice(0,cut);
+  const e = parseElems(body);
+  let temp=null, dew=null, alt=null, altTxt=null;
+  for(const t of body){
+    let m;
+    if((m=t.match(/^(M?\d{2})\/(M?\d{2})?$/))){ temp=+m[1].replace("M","-"); if(m[2]) dew=+m[2].replace("M","-"); }
+    if((m=t.match(/^A(\d{4})$/))){ alt=+m[1]/100; altTxt=alt.toFixed(2)+'"'; }
+    if((m=t.match(/^Q(\d{4})$/))){ alt=+m[1]*0.02953; altTxt=m[1]+" hPa"; }
+  }
+  return {raw:clean, icao, time, ...e, temp, dew, alt, altTxt, cat:flightCat(e.vis, e.ceil ?? (e.cavok||e.clouds.length? 99999 : null))};
+}
+
+/* TAF → segments + hourly prevailing/temporary categories */
+function tafTime(ddhh, ref){
+  const d=+ddhh.slice(0,2), h=+ddhh.slice(2,4), mi = ddhh.length>=6 ? +ddhh.slice(4,6) : 0;
+  let dt = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), d, 0, mi)); dt = new Date(dt.getTime()+h*36e5);
+  if(dt - ref < -15*864e5) dt = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth()+1, d, 0, mi)+h*36e5);
+  if(dt - ref > 15*864e5) dt = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth()-1, d, 0, mi)+h*36e5);
+  return dt;
+}
+function parseTaf(raw){
+  const clean = raw.replace(/=\s*$/,"").replace(/\s+/g," ").trim();
+  let tok = clean.split(" ");
+  while(/^(TAF|AMD|COR)$/.test(tok[0])) tok.shift();
+  const icao = tok.shift();
+  if(/^\d{6}Z$/.test(tok[0])) tok.shift();
+  const vm = (tok[0]||"").match(/^(\d{4})\/(\d{4})$/); if(!vm) return null;
+  tok.shift();
+  const now = new Date();
+  const vFrom = tafTime(vm[1], now), vTo = tafTime(vm[2], now);
+  // split into groups
+  const groups = []; let cur = {type:"BASE", from:vFrom, to:vTo, tok:[]};
+  for(let i=0;i<tok.length;i++){
+    const t = tok[i]; let m;
+    if((m=t.match(/^FM(\d{6})$/))){ groups.push(cur); cur={type:"FM",from:tafTime(m[1],vFrom),to:vTo,tok:[]}; continue; }
+    if(t==="BECMG"||t==="TEMPO"||/^PROB\d{2}$/.test(t)){
+      let type = t; if(/^PROB/.test(t) && tok[i+1]==="TEMPO"){ type = t+" TEMPO"; i++; }
+      const w = (tok[i+1]||"").match(/^(\d{4})\/(\d{4})$/);
+      groups.push(cur); cur={type, from: w?tafTime(w[1],vFrom):vFrom, to: w?tafTime(w[2],vFrom):vTo, tok:[]}; if(w) i++; continue;
+    }
+    if(/^(TX|TN)/.test(t)) continue;
+    cur.tok.push(t);
+  }
+  groups.push(cur);
+  // conditions per group
+  let prev = {vis:null, ceil:null, cl:false};
+  const segs = groups.map(g=>{
+    const e = parseElems(g.tok);
+    const hasCl = e.clouds.length>0 || e.cavok;
+    const isTemp = /TEMPO|PROB/.test(g.type);
+    const base = isTemp ? prev : prev;
+    const vis = e.vis ?? base.vis;
+    const ceil = hasCl ? e.ceil : base.ceil;
+    const cl = hasCl || base.cl;
+    const cat = flightCat(vis, ceil ?? (cl ? 99999 : null));
+    const seg = {type:g.type, from:g.from, to:g.to, vis, ceil, cat, wind:e.wind, wx:e.wx, txt:g.tok.join(" ")};
+    if(!isTemp) prev = {vis, ceil, cl};
+    return seg;
+  });
+  // hourly
+  const hours = []; const start = new Date(Math.max(now.getTime(), vFrom.getTime())); start.setUTCMinutes(0,0,0);
+  for(let k=0;k<30;k++){
+    const t = new Date(start.getTime()+k*36e5); if(t>=vTo){ hours.push({t, prev:null, temp:null}); continue; }
+    let p=null; for(const s of segs){ if(!/TEMPO|PROB/.test(s.type) && s.from<=t) p=s.cat; }
+    let tmp=null; for(const s of segs){ if(/TEMPO|PROB/.test(s.type) && s.from<=t && t<s.to) tmp = tmp? worse(tmp,s.cat): s.cat; }
+    hours.push({t, prev:p, temp:tmp});
+  }
+  const worst = hours.reduce((w,h)=>worse(worse(w,h.prev||"UNK"),h.temp||"UNK"),"UNK");
+  const worstPrev = hours.reduce((w,h)=>worse(w,h.prev||"UNK"),"UNK");
+  return {raw:clean, icao, from:vFrom, to:vTo, segs, hours, worst, worstPrev};
+}
+
+/* ---------- fetchers ---------- */
+async function fetchText(url, ms=15000){
+  const c = new AbortController(); const t = setTimeout(()=>c.abort(), ms);
+  try{ const r = await fetch(url,{signal:c.signal}); if(!r.ok) throw new Error("HTTP "+r.status); return await r.text(); } finally{ clearTimeout(t); }
+}
+function lastReports(text){
+  const out = {};
+  for(const line of text.split("\n")){
+    const l = line.trim(); if(!l) continue;
+    const tk = l.split(/\s+/); let i=0; while(/^(METAR|SPECI|TAF|AMD|COR)$/.test(tk[i])) i++;
+    const id = tk[i]; if(!/^[A-Z]{4}$/.test(id)) continue;
+    (out[id] ||= []).push(l);
+  }
+  return out;
+}
+async function loadAviation(kind){
+  const list = STATIONS.map(s=>s.icao); const chunks=[];
+  for(let i=0;i<list.length;i+=8) chunks.push(list.slice(i,i+8));
+  let ok=0, fail=0;
+  await Promise.all(chunks.map(async ch=>{
+    try{
+      const txt = await fetchText(`https://api.met.no/weatherapi/tafmetar/1.0/${kind}.txt?icao=${ch.join(",")}`);
+      const rep = lastReports(txt);
+      for(const id of ch){
+        const arr = rep[id]; if(!arr||!arr.length) continue;
+        try{
+          if(kind==="metar"){
+            const parsed = arr.map(parseMetar).filter(p=>p.time).sort((a,b)=>a.time-b.time);
+            if(parsed.length) S.metar[id] = parsed[parsed.length-1];
+          } else {
+            for(let k=arr.length-1;k>=0;k--){ const p=parseTaf(arr[k]); if(p){ S.taf[id]=p; break; } }
+          }
+        }catch(e){ console.warn(kind,id,e); }
+      }
+      ok++;
+    }catch(e){ fail++; console.warn(kind, ch, e); }
+  }));
+  S.src[kind] = ok ? (fail? "part":"ok") : "err";
+  S.src[kind+"At"] = new Date();
+}
+async function loadForecast(){
+  try{
+    const lat = STATIONS.map(s=>s.lat).join(","), lon = STATIONS.map(s=>s.lon).join(",");
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant&forecast_days=3&timezone=auto&wind_speed_unit=kn`;
+    const j = JSON.parse(await fetchText(url, 25000));
+    const arr = Array.isArray(j) ? j : [j];
+    arr.forEach((f,i)=>{ if(STATIONS[i]) S.fc[STATIONS[i].icao] = f; });
+    S.src.fc = "ok"; S.src.fcAt = new Date();
+  }catch(e){ S.src.fc="err"; console.warn("forecast",e); }
+}
+async function loadAdvLive(){
+  try{
+    const u = "https://api.rss2json.com/v1/api.json?rss_url="+encodeURIComponent("https://travel.state.gov/_res/rss/TAsTWs.xml");
+    const j = JSON.parse(await fetchText(u));
+    let n=0;
+    for(const it of (j.items||[])){
+      const m = (it.link||"").match(/destination\.(\w{3})\.html/); const lm = (it.title||"").match(/Level (\d)/);
+      if(!m||!lm) continue;
+      const iso = m[1], date = (it.pubDate||"").slice(0,10);
+      if(!ADV[iso] || date > ADV[iso][1]){ ADV[iso] = [+lm[1], date, (ADV[iso]?.[2] && +lm[1]===ADV[iso][0]) ? ADV[iso][2] : (it.title||"")]; S.advLive[iso]=true; n++; }
+    }
+    S.src.adv = "ok"; S.advUpdates = n;
+  }catch(e){ S.src.adv = "snap"; }
+}
+
+/* ---------- FAA NAS Status (ground stops, GDPs, delays, closures) ----------
+   nasstatus.faa.gov blocks direct browser reads, so it is relayed through Jina Reader (r.jina.ai, free, no key). */
+const FAA_URL = "https://nasstatus.faa.gov/api/airport-status-information";
+const FAA_TYPES = {
+  "Ground Stop Programs":{k:"GS",  label:"GROUND STOP", c:"var(--LIFR)", p:30},
+  "Ground Delay Programs":{k:"GDP", label:"GROUND DELAY PGM", c:"var(--IFR)", p:25},
+  "Airspace Flow Programs":{k:"AFP", label:"AIRSPACE FLOW PGM", c:"var(--L3)", p:15},
+  "General Arrival/Departure Delay Info":{k:"DLY", label:"ARR/DEP DELAY", c:"var(--amber)", p:20},
+  "Airport Closures":{k:"CLSD", label:"CLOSURE", c:"var(--L4)", p:10},
+  "Deicing":{k:"DEICE", label:"DEICING", c:"var(--MVFR)", p:12},
+};
+const iataToIcao = Object.fromEntries(STATIONS.filter(s=>s.iso==="usa").map(s=>[s.iata,s.icao]));
+async function loadFaa(){
+  try{
+    const txt = await fetchText("https://r.jina.ai/"+FAA_URL, 20000);
+    const i = txt.indexOf("<AIRPORT_STATUS_INFORMATION"); if(i<0) throw new Error("no XML in relay answer");
+    const xml = new DOMParser().parseFromString(txt.slice(i, txt.lastIndexOf("</AIRPORT_STATUS_INFORMATION>")+29), "text/xml");
+    if(xml.querySelector("parsererror")) throw new Error("XML parse error");
+    const kid = (el,n) => el.querySelector(":scope > "+n)?.textContent.trim() || "";
+    const items = [];
+    xml.querySelectorAll("Delay_type").forEach(dt=>{
+      const name = kid(dt,"Name"); const T = FAA_TYPES[name] || {k:"OTHER", label:name.toUpperCase(), c:"var(--cyan)", p:8};
+      const list = [...dt.children].find(c=>c.tagName!=="Name"); if(!list) return;
+      [...list.children].forEach(rec=>{
+        const arpt = kid(rec,"ARPT") || kid(rec,"CTL_Element") || "";
+        const reason = kid(rec,"Reason");
+        let detail = "", sev = 0;
+        if(T.k==="GS"){ detail = "Until "+(kid(rec,"End_Time")||"further notice"); sev = 3; }
+        else if(T.k==="GDP"){ detail = `Avg ${kid(rec,"Avg")} · Max ${kid(rec,"Max")}`; sev = 2; }
+        else if(T.k==="DLY"){ const ad=[...rec.querySelectorAll("Arrival_Departure")];
+          detail = ad.map(a=>`${(a.getAttribute("Type")||"").toUpperCase()} ${kid(a,"Min")}–${kid(a,"Max")}${kid(a,"Trend")?" ("+kid(a,"Trend").toLowerCase()+")":""}`).join(" · "); sev = /hour/.test(detail)?2:1; }
+        else if(T.k==="CLSD"){ detail = `${kid(rec,"Start")} → ${kid(rec,"Reopen")}`; sev = /TRANSIENT GA|NON SKED TRANSIENT/i.test(reason) ? 0 : 3; }
+        else { detail = [...rec.children].filter(c=>!["ARPT","Reason","CTL_Element"].includes(c.tagName) && !c.children.length).map(c=>c.tagName.replace(/_/g," ")+": "+c.textContent.trim()).join(" · "); sev = 1; }
+        detail = detail.replace(/(\d+) hours? and (\d+) minutes?/g,(m,h,mi)=>`${h}h${String(mi).padStart(2,"0")}m`).replace(/(\d+) hours?/g,"$1h").replace(/(\d+) minutes?/g,"$1m");
+        items.push({type:T.k, label:T.label, c:T.c, p:T.p, arpt, icao: iataToIcao[arpt]||null, reason, detail, sev, gaOnly: T.k==="CLSD" && sev===0});
+      });
+    });
+    items.sort((a,b)=> (!!b.icao - !!a.icao) || (b.p - a.p) || a.arpt.localeCompare(b.arpt));
+    S.faa = {updated: kid(xml.documentElement,"Update_Time"), items};
+    S.src.faa = "ok"; S.src.faaAt = new Date();
+  }catch(e){ S.src.faa = "err"; console.warn("FAA NAS status", e); }
+}
+const faaFor = icao => (S.faa?.items||[]).filter(x=>x.icao===icao);
+const faaWorst = icao => faaFor(icao).filter(x=>!x.gaOnly).sort((a,b)=>b.p-a.p)[0] || null;
+const faaShort = x => x.type==="DLY" ? (/DEPARTURE/.test(x.detail)&&/ARRIVAL/.test(x.detail)?"ARR/DEP":/DEPARTURE/.test(x.detail)?"DEP DLY":"ARR DLY") : x.type;
+
+/* ---------- derived ---------- */
+function rowData(s){
+  const m = S.metar[s.icao], t = S.taf[s.icao], f = S.fc[s.icao], a = s.iso==="usa" ? null : ADV[s.iso];
+  const gust3 = f?.daily ? Math.max(...f.daily.wind_gusts_10m_max.filter(x=>x!=null)) : null;
+  return {s, m, t, f, a,
+    cat: m?.cat || "UNK",
+    age: m?.time ? Math.round((Date.now()-m.time)/6e4) : null,
+    lvl: a ? a[0] : 0, gust3};
+}
+function visible(){
+  const q = S.q.toLowerCase();
+  return STATIONS.map(rowData).filter(r=>
+    (S.region==="ALL" || r.s.region===S.region) &&
+    (!S.catFilter || r.cat===S.catFilter) &&
+    (!q || (r.s.icao+" "+r.s.iata+" "+r.s.city+" "+r.s.country).toLowerCase().includes(q)));
+}
+
+/* ---------- render ---------- */
+function fmtWind(w){ if(!w) return "—"; if(w.spd===0) return "CALM"; return `${w.dir}°/${pad(w.spd)}${w.gust?"G"+w.gust:""}KT`.replace("VRB°","VRB"); }
+function fmtCeil(m){ if(!m) return "—"; if(m.cavok) return "CAVOK"; return m.ceil!=null ? m.ceil.toLocaleString()+"ft" : "NONE"; }
+function fmtAge(a){ if(a==null) return "—"; return a<60? a+"m" : Math.floor(a/60)+"h"+pad(a%60); }
+const WMO = c => c==null?["·",""]: c===0?["☀️","Clear"]: c<=2?["⛅","Partly cloudy"]: c===3?["☁️","Overcast"]: c<=48?["🌫️","Fog"]: c<=57?["🌦️","Drizzle"]: c<=67?["🌧️","Rain"]: c<=77?["❄️","Snow"]: c<=82?["🌦️","Showers"]: c<=86?["🌨️","Snow showers"]: ["⛈️","Thunderstorm"];
+const dayName = d => new Date(d+"T12:00:00Z").toLocaleDateString("en-US",{weekday:"short",timeZone:"UTC"}).toUpperCase();
+
+function renderStatus(){
+  const lab = {ok:"ok",part:"wait",err:"err",wait:"wait",snap:"wait"};
+  const t = d => d ? d.toISOString().slice(11,16)+"Z" : "";
+  $("status").innerHTML = [
+    ["METAR",S.src.metar,t(S.src.metarAt)],["TAF",S.src.taf,t(S.src.tafAt)],["FCST",S.src.fc,t(S.src.fcAt)],
+    ["FAA NAS",S.src.faa,t(S.src.faaAt)],
+    ["STATE DEPT",S.src.adv, S.src.adv==="ok"?"LIVE+SNAP":S.src.adv==="snap"?"SNAPSHOT":""]
+  ].map(([n,st,tm])=>`<i class="${lab[st]||"wait"}">${n} ${st==="err"?"✕":st==="wait"?"…":"●"} ${tm}</i>`).join("");
+}
+function renderKpis(){
+  const rows = STATIONS.map(rowData).filter(r=>S.region==="ALL"||r.s.region===S.region);
+  const cnt = c => rows.filter(r=>r.cat===c).length;
+  const rep = rows.filter(r=>r.m).length;
+  const tafIfr = rows.filter(r=>r.t && CAT_RANK[r.t.worst]>=2).length;
+  const adv34 = rows.filter(r=>r.lvl>=3).length;
+  const maxG = rows.reduce((b,r)=> r.gust3!=null && (!b||r.gust3>b.g) ? {g:r.gust3,i:r.s.icao} : b, null);
+  const k = (id,l,v,s,c) => `<div class="kpi ${S.catFilter===id?"on":""}" data-cat="${id}" style="--c:${c}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+  $("kpis").innerHTML =
+    k("VFR","VFR",cnt("VFR"),"stations now","var(--VFR)")+
+    k("MVFR","MVFR",cnt("MVFR"),"stations now","var(--MVFR)")+
+    k("IFR","IFR",cnt("IFR"),"stations now","var(--IFR)")+
+    k("LIFR","LIFR",cnt("LIFR"),"stations now","var(--LIFR)")+
+    k("","REPORTING",`${rep}<small style="font-size:14px;color:var(--dim)">/${rows.length}</small>`,"METAR received","var(--cyan)")+
+    k("","TAF ≤ IFR",tafIfr,"next 30h incl. TEMPO/PROB","var(--IFR)")+
+    (()=>{ const it=(S.faa?.items||[]).filter(x=>!x.gaOnly); const gs=it.filter(x=>x.type==="GS").length, gdp=it.filter(x=>x.type==="GDP").length, net=new Set(it.filter(x=>x.icao).map(x=>x.icao)).size;
+      return `<div class="kpi" id="kpiFaa" style="--c:var(--LIFR)"><div class="l">FAA ATC · GS / GDP</div><div class="v">${S.faa?gs+"<small style='font-size:14px;color:var(--dim)'> / </small>"+gdp:"—"}</div><div class="s">${S.faa? it.length+" US programs/delays · "+net+" at our stations":"loading FAA NAS status"}</div></div>`; })()+
+    k("","ADVISORY L3–4",adv34,"stations in Reconsider/Do Not Travel","var(--L3)")+
+    k("","PEAK GUST 72H",maxG?Math.round(maxG.g)+"<small style='font-size:14px;color:var(--dim)'>KT</small>":"—",maxG?maxG.i+" (model)":"","var(--amber)");
+  $("kpiFaa").onclick = ()=>$("faaPanel").scrollIntoView({behavior:"smooth",block:"start"});
+  $("kpis").querySelectorAll(".kpi").forEach(el=>el.onclick=el.onclick||(()=>{ const c=el.dataset.cat; if(!c) return; S.catFilter = S.catFilter===c?null:c; renderAll(); }));
+}
+function tafMini(t){
+  if(!t||!t.hours?.length) return `<span style="color:var(--mute)">—</span>`;
+  return `<span class="taf-mini" title="TAF prevailing (worst incl. TEMPO/PROB: ${t.worst})">${t.hours.map(h=>`<i style="background:${catColor(h.temp? worse(h.prev||"UNK",h.temp):h.prev)}"></i>`).join("")}</span>`;
+}
+function renderTable(){
+  const rows = visible(); const {k,dir} = S.sort;
+  const val = r => ({icao:r.s.icao, region:r.s.region, cat:CAT_RANK[r.cat], age:r.age??1e9, wind:r.m?.wind?.gust||r.m?.wind?.spd||0, vis:r.m?.vis??99, ceil:r.m?.ceil??1e6, temp:r.m?.temp??-99, alt:r.m?.alt??0, taf:CAT_RANK[r.t?.worst||"UNK"], atc:(faaWorst(r.s.icao)?.p||0), gust:r.gust3??0, lvl:r.lvl})[k];
+  rows.sort((a,b)=>{ const x=val(a), y=val(b); return (x>y?1:x<y?-1:0)*dir || a.s.icao.localeCompare(b.s.icao); });
+  $("tb").innerHTML = rows.map(r=>{
+    const m=r.m, f=r.f;
+    const d3 = f?.daily ? f.daily.time.map((d,i)=>{ const w=WMO(f.daily.weather_code[i]); return `<span title="${esc(w[1])} · gust ${Math.round(f.daily.wind_gusts_10m_max[i])}kt · precip ${f.daily.precipitation_probability_max[i]??"–"}%">${w[0]}<small>${Math.round(f.daily.temperature_2m_max[i])}°</small></span>`; }).join("") : `<small style="color:var(--mute)">—</small>`;
+    const lv = r.s.iso==="usa" ? `<small style="color:var(--dim)">US DOMESTIC</small>` : r.a ? `<span class="lv" style="background:${lvlColor(r.lvl)}">L${r.lvl}</span>${S.advLive[r.s.iso]?' <small style="color:var(--green)">LIVE</small>':""}` : "—";
+    return `<tr class="r" data-i="${r.s.icao}">
+      <td class="ic"><b>${r.s.icao}</b><small>${r.s.iata} · ${esc(r.s.city)}</small></td>
+      <td style="color:var(--dim)">${r.s.region}</td>
+      <td><span class="cat" style="background:${catColor(r.cat)}">${r.cat==="UNK"?"N/A":r.cat}</span></td>
+      <td class="${r.age>90?"stale":""}">${fmtAge(r.age)}</td>
+      <td>${fmtWind(m?.wind)}</td><td>${m?.visTxt||"—"}</td><td>${fmtCeil(m)}</td>
+      <td>${m?.temp!=null? m.temp+"°/"+(m.dew??"–")+"°":"—"}</td><td>${m?.altTxt||"—"}</td>
+      <td>${(()=>{ if(r.s.iso!=="usa") return `<small style="color:var(--mute)">—</small>`; const w=faaWorst(r.s.icao); if(!S.faa) return `<small style="color:var(--mute)">…</small>`; return w? `<span class="lv" style="background:${w.c}" title="${esc(w.reason+" · "+w.detail)}">${faaShort(w)}</span>${faaFor(r.s.icao).filter(x=>!x.gaOnly).length>1?` <small style="color:var(--dim)">+${faaFor(r.s.icao).filter(x=>!x.gaOnly).length-1}</small>`:""}` : `<small style="color:var(--green)">NORMAL</small>`; })()}</td>
+      <td>${tafMini(r.t)}</td><td><div class="d3">${d3}</div></td><td>${lv}</td>
+      <td class="raw" title="${esc(m?.raw||"")}">${esc(m?.raw||"")}</td></tr>`;
+  }).join("") || `<tr><td colspan="14" class="empty">No stations match.</td></tr>`;
+  $("tb").querySelectorAll("tr.r").forEach(tr=>tr.onclick=()=>openDrawer(tr.dataset.i));
+}
+function renderWatch(){
+  const items=[];
+  STATIONS.map(rowData).filter(r=>S.region==="ALL"||r.s.region===S.region).forEach(r=>{
+    if(CAT_RANK[r.cat]>=2) items.push({p:10+CAT_RANK[r.cat], r, tag:r.cat, c:catColor(r.cat), t:`${r.s.icao} ${r.s.city} — ${r.cat} NOW`, d:r.m.raw});
+    else if(r.t && CAT_RANK[r.t.worst]>=2){
+      const h = r.t.hours.find(h=>CAT_RANK[h.prev||"UNK"]>=2 || CAT_RANK[h.temp||"UNK"]>=2);
+      items.push({p:5+CAT_RANK[r.t.worst], r, tag:"TAF", c:catColor(r.t.worst), t:`${r.s.icao} ${r.s.city} — TAF ${r.t.worst}${h?" from "+pad(h.t.getUTCHours())+"Z":""}${CAT_RANK[r.t.worstPrev]>=2?"":" (TEMPO/PROB)"}`, d:r.t.raw});
+    }
+    faaFor(r.s.icao).filter(x=>!x.gaOnly).forEach(x=> items.push({p:12+x.sev, r, tag:faaShort(x), c:x.c, t:`${r.s.icao} ${r.s.city} — FAA ${x.label}`, d:`${x.reason} · ${x.detail}`}));
+    if(r.gust3>=35) items.push({p:4, r, tag:"WIND", c:"var(--amber)", t:`${r.s.icao} ${r.s.city} — model gusts to ${Math.round(r.gust3)}kt (72h)`, d:"Open-Meteo daily max 10 m gust"});
+    if(r.lvl>=3) items.push({p:3+r.lvl/10, r, tag:"L"+r.lvl, c:lvlColor(r.lvl), t:`${r.s.icao} ${r.s.country} — ${LVL_TXT[r.lvl]}`, d:r.a[2]});
+  });
+  items.sort((a,b)=>b.p-a.p);
+  $("watch").innerHTML = items.length ? items.map(x=>`<div class="w" data-i="${x.r.s.icao}"><span class="tag" style="background:${x.c}">${x.tag}</span><div class="t"><b>${esc(x.t)}</b><div>${esc(x.d)}</div></div></div>`).join("") : `<div class="empty">All clear — no IFR, high-wind or L3+ items in view.</div>`;
+  $("watch").querySelectorAll(".w").forEach(el=>el.onclick=()=>openDrawer(el.dataset.i));
+}
+function renderTicker(){
+  const html = STATIONS.map(s=>{ const m=S.metar[s.icao]; const c=m?.cat||"UNK";
+    return `<span class="tk" data-i="${s.icao}"><b>${s.icao}</b><em style="background:${catColor(c)}">${c==="UNK"?"N/A":c}</em>${m?`${m.temp??"–"}°C ${fmtWind(m.wind)} ${m.visTxt||""}`:""}</span>`; }).join("");
+  $("ticker").innerHTML = html + html;
+  $("ticker").querySelectorAll(".tk").forEach(el=>el.onclick=()=>openDrawer(el.dataset.i));
+}
+let map, markers={};
+function initMap(){
+  if(!window.L){ $("map").innerHTML='<div class="empty">Map library unavailable offline — board and watchlist still work.</div>'; return; }
+  map = L.map("map",{worldCopyJump:true, zoomControl:true, attributionControl:true, minZoom:1}).setView([25,10],2);
+  const mtAttr = '<a href="https://www.maptiler.com/copyright/" target="_blank">© MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>';
+  const mt = (style, ext="png") => L.tileLayer(`https://api.maptiler.com/maps/${style}/256/{z}/{x}/{y}${ext==="png"?"@2x":""}.${ext}?key=${MAPTILER_KEY}`,{maxZoom:12,attribution:mtAttr,crossOrigin:true});
+  const carto = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{subdomains:"abcd",maxZoom:10,attribution:'© OpenStreetMap © CARTO'});
+  const bases = MAPTILER_KEY ? {
+    "Dark (MapTiler Dataviz)": mt("dataviz-dark"),
+    "Dark Backdrop": mt("backdrop-dark"),
+    "Dark Streets": mt("streets-v2-dark"),
+    "Satellite Hybrid": mt("hybrid","jpg"),
+    "Dark (CARTO, no key)": carto
+  } : {"Dark (CARTO)": carto};
+  const first = Object.values(bases)[0]; first.addTo(map);
+  if(Object.keys(bases).length>1) L.control.layers(bases,null,{position:"topright",collapsed:true}).addTo(map);
+  // if MapTiler is unreachable or the key is rejected, fall back to CARTO automatically
+  if(MAPTILER_KEY){ let errs=0; first.on("tileerror",()=>{ if(++errs===4 && map.hasLayer(first)){ map.removeLayer(first); carto.addTo(map); console.warn("MapTiler tiles failing — switched to CARTO"); } }); }
+  STATIONS.forEach(s=>{
+    markers[s.icao] = L.circleMarker([s.lat,s.lon],{radius:6,weight:1.5,color:"#000",fillOpacity:.95,fillColor:"#4b5563"}).addTo(map)
+      .on("click",()=>openDrawer(s.icao));
+  });
+}
+/* ---------- satellite & precipitation overlays (all keyless) ---------- */
+const WX = {sat:null, rad:null, satKey:"", radKey:"", op:0.85, rv:{frames:[], layers:[], i:0, timer:null, playing:true, host:""}};
+const gibs = (layer, pane) => L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/default/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png`,
+  {maxNativeZoom:6, maxZoom:12, pane, attribution:'Imagery: NASA GIBS / NOAA / JMA'});
+const eum = (layer, pane) => L.tileLayer.wms("https://view.eumetsat.int/geoserver/wms",
+  {layers:layer, format:"image/png", transparent:true, version:"1.3.0", pane, attribution:'Imagery © EUMETSAT'});
+const SAT = {
+  global:  ["EUMETSAT world IR cloud map (10.8 µm, multi-satellite)", p=>eum("mumi:worldcloudmap_ir108",p)],
+  goese:   ["GOES-East IR (Americas/Atlantic, ~10 min)", p=>gibs("GOES-East_ABI_Band13_Clean_Infrared",p)],
+  goesw:   ["GOES-West IR (East Pacific/Alaska/Hawaii, ~10 min)", p=>gibs("GOES-West_ABI_Band13_Clean_Infrared",p)],
+  himawari:["Himawari IR (Asia–Pacific, ~10 min)", p=>gibs("Himawari_AHI_Band13_Clean_Infrared",p)],
+  meteosat:["Meteosat IR (Europe/Africa/Middle East, ~15 min)", p=>eum("msg_fes:ir108",p)],
+};
+const RADVIEW = {meteosat:[[25,15],3], goese:[[25,-70],3], goesw:[[35,-145],3], himawari:[[15,125],3]};
+function initWx(){
+  if(!map) { $("wxbar").style.display="none"; return; }
+  map.createPane("satPane"); map.getPane("satPane").style.zIndex = 250;
+  map.getPane("satPane").style.mixBlendMode = "screen";   // clouds glow over the dark map, clear sky stays transparent-looking
+  map.createPane("radPane"); map.getPane("radPane").style.zIndex = 350;
+  map.createPane("refPane"); map.getPane("refPane").style.zIndex = 360; map.getPane("refPane").style.pointerEvents = "none";
+  const refUrl = l => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${l}/default/default/GoogleMapsCompatible_Level13/{z}/{y}/{x}.png`;
+  WX.ref = L.layerGroup([
+    L.tileLayer(refUrl("Coastlines_15m"),{pane:"refPane",maxNativeZoom:9,maxZoom:12,opacity:.6}),
+    L.tileLayer(refUrl("Reference_Features_15m"),{pane:"refPane",maxNativeZoom:9,maxZoom:12,opacity:.45})]);
+  $("wxbar").querySelectorAll("[data-sat]").forEach(b=>b.onclick=()=>setSat(b.dataset.sat));
+  $("wxbar").querySelectorAll("[data-rad]").forEach(b=>b.onclick=()=>setRad(b.dataset.rad));
+  $("wxOp").oninput = e=>{ WX.op = e.target.value/100; applyOp(); };
+  $("rvPlay").onclick = ()=>{ WX.rv.playing=!WX.rv.playing; $("rvPlay").textContent = WX.rv.playing?"❚❚":"▶"; if(WX.rv.playing) rvStart(); else rvStop(); };
+  updWxUi();
+}
+function applyOp(){
+  if(WX.sat) WX.sat.setOpacity(WX.op);
+  if(WX.radKey==="rv") WX.rv.layers.forEach((l,i)=>l.setOpacity(i===WX.rv.i?WX.op:0));
+  else if(WX.rad) WX.rad.setOpacity(WX.op);
+}
+function updWxUi(){
+  $("wxbar").querySelectorAll("[data-sat]").forEach(b=>b.classList.toggle("on", b.dataset.sat===WX.satKey));
+  $("wxbar").querySelectorAll("[data-rad]").forEach(b=>b.classList.toggle("on", b.dataset.rad===WX.radKey));
+  $("rvPlay").style.display = WX.radKey==="rv" ? "" : "none";
+  if(WX.radKey!=="rv") $("rvTime").textContent = WX.satKey||WX.radKey ? "LATEST" : "—";
+  $("radleg").style.display = WX.radKey ? "flex" : "none";
+  $("radsrc").textContent = {rv:"RainViewer radar mosaic", nexrad:"NEXRAD base reflectivity", imerg:"NASA IMERG rate (mm/h)"}[WX.radKey]||"";
+}
+function setSat(k){
+  if(WX.sat){ map.removeLayer(WX.sat); WX.sat=null; }
+  WX.satKey = k;
+  if(k){ WX.sat = SAT[k][1]("satPane").setOpacity(WX.op).addTo(map);
+    if(RADVIEW[k] && map.getZoom()<=2) map.setView(...RADVIEW[k]); }
+  if(k && !map.hasLayer(WX.ref)) WX.ref.addTo(map); else if(!k && map.hasLayer(WX.ref)) map.removeLayer(WX.ref);
+  updWxUi();
+}
+function setRad(k){
+  rvStop(); WX.rv.layers.forEach(l=>map.removeLayer(l)); WX.rv.layers=[];
+  if(WX.rad){ map.removeLayer(WX.rad); WX.rad=null; }
+  WX.radKey = k;
+  if(k==="nexrad"){
+    WX.rad = L.tileLayer("https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png?_="+Date.now(),{pane:"radPane",maxZoom:12,opacity:WX.op,attribution:'NEXRAD via Iowa Environmental Mesonet'}).addTo(map);
+    if(map.getZoom()<=2) map.setView([37,-95],4);
+  } else if(k==="imerg"){
+    WX.rad = gibs("IMERG_Precipitation_Rate","radPane").setOpacity(WX.op).addTo(map);
+  } else if(k==="rv"){ loadRadarFrames(); }
+  updWxUi();
+}
+async function loadRadarFrames(){
+  $("rvTime").textContent = "loading…";
+  try{
+    const j = JSON.parse(await fetchText("https://api.rainviewer.com/public/weather-maps.json"));
+    if(WX.radKey!=="rv") return;
+    WX.rv.host = j.host; WX.rv.frames = [...(j.radar?.past||[]), ...(j.radar?.nowcast||[])];
+    WX.rv.layers = WX.rv.frames.map(f=>L.tileLayer(`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,
+      {pane:"radPane", maxNativeZoom:7, maxZoom:12, opacity:0, attribution:'Radar © RainViewer'}).addTo(map));
+    WX.rv.i = WX.rv.layers.length-1; rvShow(WX.rv.i);
+    if(WX.rv.playing) setTimeout(rvStart, 1500);  // let the frames preload
+  }catch(e){ $("rvTime").textContent = "radar unavailable"; console.warn("rainviewer",e); }
+}
+function rvShow(i){
+  WX.rv.i = i; WX.rv.layers.forEach((l,k)=>l.setOpacity(k===i?WX.op:0));
+  const f = WX.rv.frames[i]; if(!f) return;
+  const d = new Date(f.time*1000); const ago = Math.round((Date.now()-d)/6e4);
+  $("rvTime").textContent = `${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}Z ${ago<=0?"(now)":"−"+ago+"m"}`;
+}
+function rvStart(){ rvStop(); if(WX.radKey!=="rv"||!WX.rv.layers.length) return;
+  WX.rv.timer = setInterval(()=>{ const n=WX.rv.layers.length; const nx=(WX.rv.i+1)%n; rvShow(nx);
+    if(nx===n-1){ clearInterval(WX.rv.timer); WX.rv.timer=setTimeout(()=>{ if(WX.rv.playing) rvStart(); },1800); } }, 550); }
+function rvStop(){ clearInterval(WX.rv.timer); clearTimeout(WX.rv.timer); WX.rv.timer=null; }
+setInterval(()=>{ if(WX.radKey==="rv") setRad("rv"); else if(WX.radKey==="nexrad") setRad("nexrad"); if(WX.satKey) setSat(WX.satKey); }, 10*60*1000);  // pull fresh imagery every 10 min
+
+function renderMap(){
+  if(!map) return;
+  STATIONS.forEach(s=>{
+    const r = rowData(s), mk = markers[s.icao];
+    const col = getComputedStyle(document.documentElement).getPropertyValue("--"+r.cat).trim();
+    const show = (S.region==="ALL"||s.region===S.region) && (!S.catFilter||r.cat===S.catFilter);
+    mk.setStyle({fillColor:col, radius: CAT_RANK[r.cat]>=2?8:6, opacity: show?1:.15, fillOpacity: show?.95:.15, color: r.lvl>=3?getComputedStyle(document.documentElement).getPropertyValue("--L"+r.lvl).trim():"#000", weight: r.lvl>=3?2.5:1.5});
+    mk.unbindTooltip().bindTooltip(`<b>${s.icao}</b> ${esc(s.city)}<br>${r.cat} · ${fmtWind(r.m?.wind)} · ${r.m?.visTxt||"—"} · CIG ${fmtCeil(r.m)}${r.lvl?`<br>State Dept L${r.lvl}`:""}${(()=>{const w=faaWorst(s.icao);return w?`<br><b style="color:#ff8a8a">FAA ${esc(w.label)}</b> ${esc(w.detail)}`:""})()}`,{direction:"top"});
+  });
+}
+function renderRegions(){
+  $("regionChips").innerHTML = Object.entries(REGIONS).map(([k,v])=>`<button class="chip ${S.region===k?"on":""}" data-r="${k}">${v}</button>`).join("");
+  $("regionChips").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{ S.region=b.dataset.r; renderAll();
+    if(map){ const pts = STATIONS.filter(s=>S.region==="ALL"||s.region===S.region).map(s=>[s.lat,s.lon]); if(S.region==="ALL") map.setView([25,10],2); else map.fitBounds(pts,{padding:[30,30]}); } });
+}
+let faaShowGa = false;
+function renderFaa(){
+  if(!S.faa){ if(S.src.faa==="err") $("faaTb").innerHTML = `<tr><td colspan="5" class="empty">FAA feed unreachable right now (relay busy). Open nasstatus.faa.gov ↗ — retrying every 2 min.</td></tr>`; return; }
+  $("faaUpd").textContent = "FAA UPDATED " + S.faa.updated.replace(/^\w+ /,"").replace(/ \d{4} GMT$/," GMT").toUpperCase();
+  const rows = S.faa.items.filter(x=>faaShowGa || !x.gaOnly);
+  $("faaGa").classList.toggle("on", faaShowGa);
+  $("faaTb").innerHTML = rows.length ? rows.map(x=>`<tr class="${x.icao?"r":""}" ${x.icao?`data-i="${x.icao}"`:""}>
+    <td><span class="lv" style="background:${x.c}">${esc(x.label)}</span></td>
+    <td><b style="color:#fff">${esc(x.arpt)}</b></td>
+    <td style="white-space:normal;max-width:420px;color:${x.gaOnly?"var(--dim)":"var(--txt)"}">${esc(x.reason)}</td>
+    <td style="white-space:normal">${esc(x.detail)}</td>
+    <td>${x.icao?`<span style="color:var(--amber)">● ${x.icao}</span>`:`<small style="color:var(--mute)">—</small>`}</td></tr>`).join("")
+    : `<tr><td colspan="5" class="empty" style="color:var(--green)">No ground stops, ground delay programs or reported delays in the NAS right now.</td></tr>`;
+  $("faaTb").querySelectorAll("tr.r").forEach(tr=>tr.onclick=()=>openDrawer(tr.dataset.i));
+}
+$("faaGa").onclick = ()=>{ faaShowGa=!faaShowGa; renderFaa(); };
+function renderAll(){ renderStatus(); renderKpis(); renderFaa(); renderRegions(); renderTable(); renderWatch(); renderMap(); }
+
+/* ---------- drawer ---------- */
+let curIcao=null, newsAbort=null;
+function openDrawer(icao){
+  const s = byIcao[icao]; if(!s) return; curIcao = icao;
+  const r = rowData(s), m=r.m, t=r.t, f=r.f;
+  $("dIcao").innerHTML = `${s.icao} <span class="cat" style="background:${catColor(r.cat)};font-size:13px;vertical-align:middle">${r.cat==="UNK"?"N/A":r.cat}</span>`;
+  $("dSub").textContent = `${s.iata} · ${s.city}, ${s.country}${s.note?" · "+s.note:""}`;
+  let h = "";
+  // METAR
+  h += `<div class="sec"><h3>METAR ${m?.time? "· "+m.time.toISOString().slice(8,10)+" "+m.time.toISOString().slice(11,16)+"Z · "+fmtAge(r.age)+" ago":""}</h3>
+    <div class="rawbox">${esc(m?.raw||"No METAR received.")}</div>
+    ${m?`<div class="dec">
+      <div><label>FLT CAT</label><b style="color:${catColor(r.cat)}">${r.cat}</b></div>
+      <div><label>WIND</label><b>${fmtWind(m.wind)}</b></div>
+      <div><label>VISIBILITY</label><b>${esc(m.visTxt||"—")}</b></div>
+      <div><label>CEILING</label><b>${fmtCeil(m)}</b></div>
+      <div><label>CLOUDS</label><b style="font-size:11px">${m.clouds.map(c=>c.cov+(c.h!=null?" "+c.h:"")+c.type).join(" · ")||(m.cavok?"CAVOK":"—")}</b></div>
+      <div><label>WX</label><b>${esc(m.wx.join(" ")||"NIL")}</b></div>
+      <div><label>TEMP / DEW</label><b>${m.temp??"–"}° / ${m.dew??"–"}°C</b></div>
+      <div><label>ALTIMETER</label><b>${esc(m.altTxt||"—")}</b></div></div>`:""}</div>`;
+  // TAF
+  if(t){
+    const hrs = t.hours;
+    h += `<div class="sec"><h3>TAF · VALID ${t.from.toISOString().slice(8,10)}/${t.from.toISOString().slice(11,13)}Z – ${t.to.toISOString().slice(8,10)}/${t.to.toISOString().slice(11,13)}Z</h3>
+      <div class="rawbox">${esc(t.raw).replace(/ (PROB\d{2} TEMPO|FM\d{6}|BECMG|TEMPO|PROB\d{2})/g,"\n  $1")}</div>
+      <div class="tl">
+        <div class="row"><span>PREVAILING</span><div class="bar">${hrs.map(x=>`<i style="background:${catColor(x.prev)}" title="${pad(x.t.getUTCHours())}Z ${x.prev||"—"}"></i>`).join("")}</div></div>
+        <div class="row"><span>TEMPO/PROB</span><div class="bar">${hrs.map(x=>`<i style="background:${x.temp?catColor(x.temp):"transparent"}" title="${pad(x.t.getUTCHours())}Z ${x.temp||"—"}"></i>`).join("")}</div></div>
+        <div class="ax">${hrs.filter((x,i)=>i%6===0).map(x=>`<span>${pad(x.t.getUTCHours())}Z</span>`).join("")}</div>
+      </div></div>`;
+  } else h += `<div class="sec"><h3>TAF</h3><div class="rawbox">No TAF available for this station.</div></div>`;
+  // 3-day
+  if(f?.daily){
+    h += `<div class="sec"><h3>3-DAY FORECAST · ${esc(f.timezone||"")}</h3><div class="days">${f.daily.time.map((d,i)=>{ const w=WMO(f.daily.weather_code[i]); const mx=f.daily.temperature_2m_max[i], mn=f.daily.temperature_2m_min[i];
+      return `<div class="day"><div class="dn">${dayName(d)} ${d.slice(5)}</div><div class="ico">${w[0]}</div><div class="tp">${Math.round(mx)}° <small>/ ${Math.round(mn)}°C · ${Math.round(mx*9/5+32)}°/${Math.round(mn*9/5+32)}°F</small></div>
+      <div class="mt">${esc(w[1])}<br>Wind ${Math.round(f.daily.wind_direction_10m_dominant[i])}° ${Math.round(f.daily.wind_speed_10m_max[i])}kt G${Math.round(f.daily.wind_gusts_10m_max[i])}<br>Precip ${f.daily.precipitation_probability_max[i]??"–"}%</div></div>`; }).join("")}</div>
+      <div style="position:relative;margin-top:10px"><canvas id="hchart"></canvas><div class="ctip" id="ctip"></div></div>
+      <div style="color:var(--dim);font-size:10px;margin-top:4px">72H HOURLY · <span style="color:var(--amber)">━ TEMP °C</span> · <span style="color:var(--cyan)">▮ GUST KT</span> · <span style="color:#6b8cff">▒ PRECIP %</span> · <span style="color:var(--IFR)">┄ VIS &lt;5km</span></div></div>`;
+  }
+  // FAA NAS status
+  if(s.iso==="usa"){
+    const fx = faaFor(s.icao);
+    h += `<div class="sec"><h3>FAA NAS STATUS · ATC PROGRAMS${S.faa?" · "+esc(S.faa.updated.replace(/^\w+ /,"").replace(/ \d{4} GMT$/," GMT")):""}</h3>${
+      !S.faa ? `<span style="color:var(--dim)">FAA status ${S.src.faa==="err"?"unavailable right now":"loading…"}.</span>` :
+      fx.length ? fx.map(x=>`<div class="adv" style="--c:${x.c};margin-bottom:6px"><div class="h"><span class="lv" style="background:${x.c}">${esc(x.label)}</span><b style="color:#fff">${esc(x.arpt)}</b>${x.gaOnly?'<span class="m">GA-only restriction</span>':""}</div><p style="margin:2px 0">${esc(x.detail)}</p><div class="m">${esc(x.reason)}</div></div>`).join("")
+      : `<span style="color:var(--green)">No ground stop, ground delay program, delay or closure reported by FAA for ${esc(s.iata)}.</span>`}
+      <div class="btns"><a class="btn" target="_blank" rel="noopener" href="https://nasstatus.faa.gov/">FAA NAS Status ↗</a><a class="btn" target="_blank" rel="noopener" href="https://www.fly.faa.gov/adv/advADB.jsp">ATCSCC advisories ↗</a></div></div>`;
+  }
+  // US alerts
+  if(s.iso==="usa" && s.fips!=="GQ") h += `<div class="sec"><h3>NWS ACTIVE WATCHES / WARNINGS</h3><div id="nws"><span class="spin">Checking api.weather.gov…</span></div></div>`;
+  // advisory
+  if(s.iso==="usa") h += `<div class="sec"><h3>U.S. STATE DEPT TRAVEL ADVISORY</h3><div class="adv" style="--c:var(--UNK)"><p>U.S. domestic station — State Department travel advisories cover foreign destinations only.</p></div></div>`;
+  else if(r.a) h += `<div class="sec"><h3>U.S. STATE DEPT TRAVEL ADVISORY</h3><div class="adv" style="--c:${lvlColor(r.lvl)}">
+      <div class="h"><span class="lv" style="background:${lvlColor(r.lvl)};font-size:13px">LEVEL ${r.lvl}</span><b style="color:#fff">${LVL_TXT[r.lvl]}</b><span class="m">${esc(s.country)} · issued/updated ${esc(r.a[1])}${S.advLive[s.iso]?" · LIVE UPDATE":""}</span></div>
+      <p>${esc(r.a[2])}</p>
+      <div class="btns"><a class="btn" target="_blank" rel="noopener" href="${advLink(s.iso)}">Full advisory ↗</a><a class="btn" target="_blank" rel="noopener" href="https://step.state.gov/">Enroll in STEP ↗</a><a class="btn" target="_blank" rel="noopener" href="https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html">All advisories ↗</a></div>
+      <div class="m" style="margin-top:8px">Snapshot ${ADV_SNAPSHOT_DATE}; refreshed against the live State Dept feed when available. Always confirm on travel.state.gov.</div></div></div>`;
+  // news
+  const qCity = encodeURIComponent(`"${s.city.replace(/ (AFB|AB)$/,"")}"`);
+  h += `<div class="sec"><h3>LOCAL NEWS · LAST 72H</h3><div class="news" id="news"><span class="spin">Loading headlines…</span></div>
+    <div class="btns"><a class="btn" target="_blank" rel="noopener" href="https://news.google.com/search?q=${qCity}%20when%3A3d">Google News: ${esc(s.city)} ↗</a>
+    <a class="btn" target="_blank" rel="noopener" href="https://news.google.com/search?q=${encodeURIComponent(s.iata+" airport OR "+s.icao)}%20when%3A7d">Airport news ↗</a>
+    <a class="btn" target="_blank" rel="noopener" href="https://aviationweather.gov/data/metar/?ids=${s.icao}&taf=1">AWC ${s.icao} ↗</a></div></div>`;
+  $("dBody").innerHTML = h; $("dBody").scrollTop = 0;
+  $("drawer").classList.add("open"); $("scrim").classList.add("on");
+  updateLocal();
+  if(f?.daily) loadHourly(s);
+  if(s.iso==="usa" && s.fips!=="GQ") loadNws(s);
+  loadNews(s);
+}
+function closeDrawer(){ $("drawer").classList.remove("open"); $("scrim").classList.remove("on"); curIcao=null; }
+$("dClose").onclick = closeDrawer; $("scrim").onclick = closeDrawer;
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeDrawer(); });
+
+async function loadNws(s){
+  try{
+    const j = JSON.parse(await fetchText(`https://api.weather.gov/alerts/active?point=${s.lat},${s.lon}`));
+    if(curIcao!==s.icao) return;
+    const fs = j.features||[];
+    $("nws").innerHTML = fs.length ? fs.map(x=>`<div class="alert"><b>${esc(x.properties.event)}</b> — ${esc(x.properties.headline||"")}<div style="color:var(--dim);font-size:11px;margin-top:3px">${esc((x.properties.description||"").slice(0,280))}…</div></div>`).join("") : `<span style="color:var(--green)">No active NWS alerts for this point.</span>`;
+  }catch(e){ if($("nws")) $("nws").innerHTML = `<span style="color:var(--dim)">NWS alerts unavailable.</span>`; }
+}
+let lastGdelt = 0;
+async function loadNews(s){
+  const el = () => $("news");
+  const city = s.city.replace(/ (AFB|AB|World Central|Narita|Kansai|Incheon|Stansted)$/,"").replace(/ (OH|CA)$/,"");
+  const tryQ = async q => { const w = Math.max(0, lastGdelt + 5500 - Date.now()); if(w) await new Promise(r=>setTimeout(r,w)); lastGdelt = Date.now(); const txt = await fetchText(`https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=ArtList&format=json&maxrecords=12&sort=DateDesc&timespan=3d`, 20000); if(!txt.trim().startsWith("{")) throw new Error(txt.slice(0,80)); return JSON.parse(txt).articles||[]; };
+  const bing = async () => {
+    const rss = `https://www.bing.com/news/search?q=${encodeURIComponent(`"${city}" ${s.country}`)}&format=rss`;
+    const j = JSON.parse(await fetchText("https://api.rss2json.com/v1/api.json?rss_url="+encodeURIComponent(rss), 15000));
+    if(j.status!=="ok") throw new Error(j.message||"feed error");
+    return (j.items||[]).map(it=>{ let dom=""; try{ const real=new URL(it.link).searchParams.get("url"); dom=new URL(real||it.link).hostname.replace(/^www\./,""); }catch(e){}
+      const d = it.pubDate ? it.pubDate.replace(" ","T").slice(0,16).replace(/[-:T]/g,"").replace(/^(\d{8})(\d{4})$/,"$1T$2") : "";
+      return {title:it.title, url:it.link, domain:dom, language:"", seendate:d}; });
+  };
+  try{
+    let arts = [];
+    try{ arts = await bing(); }catch(e){ console.warn("bing news",e); }
+    if(arts.length<3 && curIcao===s.icao){ try{ arts = arts.concat(await tryQ(`"${city}" sourcecountry:${s.fips}`)); }catch(e){ if(!arts.length) throw e; } }
+    if(curIcao!==s.icao) return;
+    const seen=new Set(); arts = arts.filter(a=>{ const k=(a.title||"").toLowerCase(); if(seen.has(k)) return false; seen.add(k); return /^https?:\/\//.test(a.url); }).slice(0,10);
+    el().innerHTML = arts.length ? arts.map(a=>{ const d=a.seendate? a.seendate.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2}).*/,"$1-$2-$3 $4:$5Z"):""; return `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}<small>${[a.domain,a.language,d].filter(Boolean).map(esc).join(" · ")}</small></a>`; }).join("") : `<span style="color:var(--dim)">No recent headlines indexed — use the links below.</span>`;
+  }catch(e){ if(curIcao===s.icao && el()) el().innerHTML = `<span style="color:var(--dim)">Headline feed busy or unavailable (${esc(e.message.slice(0,60))}). Use the links below.</span>`; }
+}
+async function loadHourly(s){
+  try{
+    const j = JSON.parse(await fetchText(`https://api.open-meteo.com/v1/forecast?latitude=${s.lat}&longitude=${s.lon}&hourly=temperature_2m,wind_gusts_10m,precipitation_probability,visibility&forecast_hours=72&timezone=GMT&wind_speed_unit=kn`));
+    if(curIcao!==s.icao) return;
+    drawHourly(j.hourly);
+  }catch(e){ console.warn("hourly",e); }
+}
+function drawHourly(H){
+  const cv = $("hchart"); if(!cv) return; const dpr = window.devicePixelRatio||1;
+  const W = cv.clientWidth, Ht = cv.clientHeight; cv.width=W*dpr; cv.height=Ht*dpr; const g=cv.getContext("2d"); g.scale(dpr,dpr);
+  const n = H.time.length, pl=34, pr=34, pt=10, pb=20, iw=W-pl-pr, ih=Ht-pt-pb, bw=iw/n;
+  const T=H.temperature_2m, G=H.wind_gusts_10m, P=H.precipitation_probability, V=H.visibility;
+  const tmin=Math.floor(Math.min(...T)-2), tmax=Math.ceil(Math.max(...T)+2), gmax=Math.max(40,Math.ceil(Math.max(...G)/10)*10);
+  const x=i=>pl+i*bw, yT=v=>pt+ih-(v-tmin)/(tmax-tmin)*ih, yG=v=>pt+ih-v/gmax*ih;
+  g.fillStyle="#03060a"; g.fillRect(0,0,W,Ht);
+  g.strokeStyle="#132030"; g.lineWidth=1; g.font="9px monospace"; g.fillStyle="#6b7f95";
+  for(let k=0;k<=4;k++){ const y=pt+ih*k/4; g.beginPath(); g.moveTo(pl,y); g.lineTo(W-pr,y); g.stroke(); g.textAlign="right"; g.fillText(Math.round(tmax-(tmax-tmin)*k/4)+"°",pl-4,y+3); g.textAlign="left"; g.fillText(Math.round(gmax*(1-k/4))+"kt",W-pr+4,y+3); }
+  for(let i=0;i<n;i++){
+    if(P[i]) { g.fillStyle=`rgba(107,140,255,${P[i]/100*0.35})`; g.fillRect(x(i),pt,bw,ih); }
+    if(V && V[i]!=null && V[i]<5000){ g.fillStyle="rgba(239,68,68,.55)"; g.fillRect(x(i),pt+ih-3,bw,3); }
+    g.fillStyle = G[i]>=35?"rgba(255,176,0,.8)":"rgba(41,211,255,.45)"; g.fillRect(x(i)+bw*0.15,yG(G[i]),bw*0.7,pt+ih-yG(G[i]));
+    const hh = H.time[i].slice(11,13); if(hh==="00"){ g.strokeStyle="#2a3d52"; g.beginPath(); g.moveTo(x(i),pt); g.lineTo(x(i),pt+ih); g.stroke(); g.fillStyle="#6b7f95"; g.textAlign="left"; g.fillText(H.time[i].slice(5,10)+" 00Z",x(i)+3,Ht-6); }
+  }
+  g.strokeStyle="#ffb000"; g.lineWidth=2; g.beginPath(); T.forEach((v,i)=>{ const px=x(i)+bw/2, py=yT(v); i?g.lineTo(px,py):g.moveTo(px,py); }); g.stroke();
+  const tip=$("ctip");
+  cv.onmousemove = e=>{ const rect=cv.getBoundingClientRect(); const i=Math.floor((e.clientX-rect.left-pl)/bw); if(i<0||i>=n){tip.style.display="none";return;}
+    tip.style.display="block"; tip.innerHTML=`<b>${H.time[i].slice(5,10)} ${H.time[i].slice(11,16)}Z</b><br>Temp ${T[i]}°C<br>Gust ${Math.round(G[i])} kt<br>Precip ${P[i]??"–"}%<br>Vis ${V?.[i]!=null?(V[i]>=10000?"10km+":Math.round(V[i])+"m"):"–"}`;
+    const lx = e.clientX-rect.left; tip.style.left = Math.min(lx+12, W-130)+"px"; tip.style.top="8px"; };
+  cv.onmouseleave = ()=>tip.style.display="none";
+}
+
+/* ---------- clocks ---------- */
+const fmtTZ = tz => new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",timeZone:tz});
+function updateLocal(){
+  if(!curIcao) return; const f = S.fc[curIcao];
+  if(f && f.utc_offset_seconds!=null){ const d=new Date(Date.now()+f.utc_offset_seconds*1000); $("dLcl").textContent = pad(d.getUTCHours())+":"+pad(d.getUTCMinutes()); }
+  else $("dLcl").textContent="--:--";
+}
+setInterval(()=>{ const d=new Date(); $("cZ").textContent = d.toISOString().slice(11,19)+"Z"; $("cMIA").textContent=fmtTZ("America/New_York"); $("cSJU").textContent=fmtTZ("America/Puerto_Rico"); $("cANC").textContent=fmtTZ("America/Anchorage"); updateLocal(); },1000);
+
+/* ---------- interactions ---------- */
+$("q").oninput = e=>{ S.q=e.target.value; renderTable(); };
+document.querySelectorAll("th[data-k]").forEach(th=>th.onclick=()=>{ const k=th.dataset.k; S.sort = {k, dir: S.sort.k===k ? -S.sort.dir : (k==="icao"||k==="region"?1:-1)}; renderTable(); });
+$("refresh").onclick = ()=>refreshWx(true);
+window.addEventListener("resize", ()=>{ if(curIcao && S.fc[curIcao]) loadHourly(byIcao[curIcao]); });
+
+/* ---------- boot ---------- */
+async function refreshWx(all){
+  renderStatus();
+  await Promise.all([loadAviation("metar"), loadAviation("taf"), all? loadForecast(): null]);
+  renderAll(); renderTicker();
+}
+initMap(); initWx(); renderAll();
+(async()=>{
+  await Promise.all([loadAviation("metar").then(()=>{renderAll();renderTicker();}), loadForecast().then(renderAll), loadAviation("taf").then(renderAll), loadAdvLive().then(renderAll), loadFaa().then(renderAll)]);
+  renderTicker();
+})();
+setInterval(()=>refreshWx(false), 5*60*1000);     // METAR/TAF every 5 min
+setInterval(()=>loadForecast().then(renderAll), 60*60*1000); // forecast hourly
+setInterval(()=>loadFaa().then(renderAll), 2*60*1000);        // FAA NAS status every 2 min
+</script>
+</body>
+</html>
