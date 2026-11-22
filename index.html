@@ -566,7 +566,7 @@ const FAA_TYPES = {
 const iataToIcao = Object.fromEntries(STATIONS.filter(s=>s.iso==="usa").map(s=>[s.iata,s.icao]));
 async function loadFaa(){
   try{
-    const txt = await fetchText("https://r.jina.ai/"+FAA_URL, 20000);
+    const txt = await fetchText("https://r.jina.ai/"+FAA_URL+"?t="+Date.now(), 20000);  // unique URL defeats the relay cache
     const i = txt.indexOf("<AIRPORT_STATUS_INFORMATION"); if(i<0) throw new Error("no XML in relay answer");
     const xml = new DOMParser().parseFromString(txt.slice(i, txt.lastIndexOf("</AIRPORT_STATUS_INFORMATION>")+29), "text/xml");
     if(xml.querySelector("parsererror")) throw new Error("XML parse error");
@@ -829,6 +829,8 @@ let faaShowGa = false;
 function renderFaa(){
   if(!S.faa){ if(S.src.faa==="err") $("faaTb").innerHTML = `<tr><td colspan="5" class="empty">FAA feed unreachable right now (relay busy). Open nasstatus.faa.gov ↗ — retrying every 2 min.</td></tr>`; return; }
   $("faaUpd").textContent = "FAA UPDATED " + S.faa.updated.replace(/^\w+ /,"").replace(/ \d{4} GMT$/," GMT").toUpperCase();
+  const age = (Date.now() - Date.parse(S.faa.updated.replace(/^\w+ (\w+) (\d+) ([\d:]+) (\d{4}) GMT$/,"$1 $2 $4 $3 GMT")))/6e4;
+  $("faaUpd").style.color = age>20 ? "var(--amber)" : "var(--dim)"; if(age>20) $("faaUpd").textContent += ` · ${Math.round(age)} MIN OLD`;
   const rows = S.faa.items.filter(x=>faaShowGa || !x.gaOnly);
   $("faaGa").classList.toggle("on", faaShowGa);
   $("faaTb").innerHTML = rows.length ? rows.map(x=>`<tr class="${x.icao?"r":""}" ${x.icao?`data-i="${x.icao}"`:""}>
