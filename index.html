@@ -170,6 +170,7 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
         <div class="grp"><label>TRAFFIC</label>
           <button class="chip on" id="tgFl" title="Atlas Air group flights (live ADS-B)">✈ ATLAS FLIGHTS</button><button class="chip on" id="tgNat" title="Active North Atlantic Tracks">NAT TRACKS</button></div>
         <div class="grp ctl"><button class="chip" id="rvPlay" title="Play / pause radar loop">❚❚</button><span id="rvTime">—</span>
+          <a class="chip" href="https://skyvector.com/" target="_blank" rel="noopener" style="text-decoration:none" title="Open SkyVector charts, satellite and weather layers">SKYVECTOR ↗</a>
           <label>OPACITY</label><input type="range" id="wxOp" min="20" max="100" value="85"></div>
       </div>
       <div class="mapwrap"><div id="map"></div>
@@ -202,7 +203,9 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
   <section class="grid" style="grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)">
     <div class="panel" id="flPanel">
       <div class="ph"><h2>ATLAS AIR GROUP · LIVE FLIGHTS (ADS-B)</h2>
-        <div class="sp"><span id="flUpd" style="color:var(--dim);font-size:10px"></span></div></div>
+        <div class="sp"><span id="flUpd" style="color:var(--dim);font-size:10px"></span>
+          <a class="chip" href="https://www.flightaware.com/live/fleet/GTI" target="_blank" rel="noopener" style="text-decoration:none">FLIGHTAWARE GTI ↗</a>
+          <a class="chip" href="https://www.flightaware.com/live/fleet/PAC" target="_blank" rel="noopener" style="text-decoration:none">PAC ↗</a></div></div>
       <div class="tbl" style="max-height:420px"><table style="min-width:640px">
         <thead><tr><th style="cursor:default">FLIGHT</th><th style="cursor:default">REG / TYPE</th><th style="cursor:default">ALT</th><th style="cursor:default">GS</th><th style="cursor:default">HDG</th><th style="cursor:default">SQK</th><th style="cursor:default">NEAREST STATION</th></tr></thead>
         <tbody id="flTb"><tr><td colspan="7" class="empty spin">Loading live ADS-B…</td></tr></tbody></table></div>
@@ -211,7 +214,8 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
     <div class="panel" id="natPanel">
       <div class="ph"><h2>NORTH ATLANTIC TRACKS</h2>
         <div class="sp"><span id="natUpd" style="color:var(--dim);font-size:10px"></span>
-          <a class="chip" href="https://notams.aim.faa.gov/nat.html" target="_blank" rel="noopener" style="text-decoration:none">FAA NAT ↗</a></div></div>
+          <a class="chip" href="https://notams.aim.faa.gov/nat.html" target="_blank" rel="noopener" style="text-decoration:none">FAA NAT ↗</a>
+          <a class="chip" href="https://skyvector.com/?ll=52,-35&zoom=12" target="_blank" rel="noopener" style="text-decoration:none">SKYVECTOR ↗</a></div></div>
       <div class="tbl" style="max-height:420px"><table style="min-width:520px">
         <thead><tr><th style="cursor:default">TRK</th><th style="cursor:default">ROUTE</th><th style="cursor:default">LEVELS</th><th style="cursor:default">VALID</th></tr></thead>
         <tbody id="natTb"><tr><td colspan="4" class="empty spin">Loading NAT track message…</td></tr></tbody></table></div>
