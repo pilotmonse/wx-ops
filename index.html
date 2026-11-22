@@ -210,7 +210,7 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
         <thead><tr><th style="cursor:default">FLIGHT</th><th style="cursor:default">ROUTE</th><th style="cursor:default">REG / TYPE</th><th style="cursor:default">ALT</th><th style="cursor:default">GS</th><th style="cursor:default">HDG</th><th style="cursor:default">SQK</th><th style="cursor:default">NEAREST STATION</th></tr></thead>
         <tbody id="flTb"><tr><td colspan="8" class="empty spin">Loading live ADS-B…</td></tr></tbody></table></div>
       <div class="legend" id="flSel" style="font-size:11px;color:var(--txt)"></div>
-      <div class="legend">Routes: adsbdb.com (crowd-reported, may be missing for charters) · trails: adsb.lol recent track · Callsigns GTI (Atlas), PAC (Polar), SOO (Southern) on 747-400/-8F, 777F, 767 · community ADS-B receivers: aircraft over open ocean drop out of coverage · click a row to center the map</div>
+      <div class="legend">Routes: adsbdb.com, crowd-reported — shown only when they match the aircraft's position and heading (⚠ = listed route doesn't fit) · trails: adsb.lol recent track · Callsigns GTI (Atlas), PAC (Polar), SOO (Southern) on 747-400/-8F, 777F, 767 · community ADS-B receivers: aircraft over open ocean drop out of coverage · click a row to center the map</div>
     </div>
     <div class="panel" id="natPanel">
       <div class="ph"><h2>NORTH ATLANTIC TRACKS</h2>
@@ -987,6 +987,16 @@ setInterval(async ()=>{
             || air.find(f=>!TRAILS[f.hex]) || air.find(f=>Date.now()-TRAILS[f.hex].at>10*6e4);
   if(pick){ await loadTrail(pick); drawFlights(); }
 }, 6000);
+function brg(a,b,c,d){ const t=Math.PI/180, y=Math.sin((d-b)*t)*Math.cos(c*t), x=Math.cos(a*t)*Math.sin(c*t)-Math.sin(a*t)*Math.cos(c*t)*Math.cos((d-b)*t); return (Math.atan2(y,x)/t+360)%360; }
+// A crowd-reported route is only trusted if the aircraft sits near the origin→destination path and is heading toward the destination.
+function routeFits(f, r){
+  if(!r?.o || !r?.d || [r.o.lat,r.o.lon,r.d.lat,r.d.lon].some(isNaN)) return false;
+  if(f.ground) return gcNm(f.lat,f.lon,r.o.lat,r.o.lon) < 15 || gcNm(f.lat,f.lon,r.d.lat,r.d.lon) < 15;
+  const od = gcNm(r.o.lat,r.o.lon,r.d.lat,r.d.lon), oa = gcNm(r.o.lat,r.o.lon,f.lat,f.lon), ad = gcNm(f.lat,f.lon,r.d.lat,r.d.lon);
+  if(oa + ad - od > Math.max(300, 0.15*od)) return false;
+  if(ad > 250){ const diff = Math.abs(((brg(f.lat,f.lon,r.d.lat,r.d.lon) - f.trk + 540) % 360) - 180); if(diff > 75) return false; }
+  return true;
+}
 const routeTxt = f => { const r=ROUTES[f.cs]; if(!r) return ""; return `${r.o?.icao||"?"}→${r.d?.icao||"?"}`; };
 function selectFlight(hex, center){
   TRAF.sel = TRAF.sel===hex && !center ? null : hex;
@@ -1013,7 +1023,7 @@ function renderFlights(){
   $("flTb").innerHTML = ac.length ? ac.map(f=>{ const r=ROUTES[f.cs];
     return `<tr class="r" data-hex="${esc(f.hex)}" style="${f.ground?"opacity:.55;":""}${TRAF.sel===f.hex?"outline:1px solid var(--cyan);background:#0f1a27":""}">
     <td><b style="color:${f.emerg?"var(--IFR)":"#fff"}">${esc(f.cs)}</b>${f.emerg?` <span class="lv" style="background:var(--IFR)">${esc(f.emerg)}</span>`:""}</td>
-    <td>${r?`<b style="color:var(--cyan)">${esc(r.o?.icao||"?")}</b><span style="color:var(--dim)">→</span><b style="color:var(--cyan)">${esc(r.d?.icao||"?")}</b>`:r===null?`<small style="color:var(--mute)">unlisted</small>`:`<small style="color:var(--mute)">…</small>`}</td>
+    <td>${r?(routeFits(f,r)?`<b style="color:var(--cyan)">${esc(r.o?.icao||"?")}</b><span style="color:var(--dim)">→</span><b style="color:var(--cyan)">${esc(r.d?.icao||"?")}</b>`:`<span title="Reported route ${esc(r.o?.icao||"?")}→${esc(r.d?.icao||"?")} does not match the aircraft position/heading (flight number likely reused)" style="color:var(--mute)">${esc(r.o?.icao||"?")}→${esc(r.d?.icao||"?")} ⚠</span>`):r===null?`<small style="color:var(--mute)">unlisted</small>`:`<small style="color:var(--mute)">…</small>`}</td>
     <td>${esc(f.reg)} <small style="color:var(--dim)">${esc(f.type)}</small></td>
     <td>${fmtAlt(f)}${!f.ground&&Math.abs(f.vs)>300?` <small style="color:var(--dim)">${f.vs>0?"↑":"↓"}</small>`:""}</td>
     <td>${f.ground?"—":f.gs+"kt"}</td><td>${f.ground?"—":String(Math.round(f.trk)).padStart(3,"0")+"°"}</td>
@@ -1034,21 +1044,22 @@ function drawFlights(){
       const line = unwrap(tr.concat([[f.lat,f.lon]]));
       L.polyline(line,{color:isSel?"#ffd166":"#ffb000", weight:isSel?3:1.3, opacity:isSel?.95:(sel?.18:.45), interactive:false}).addTo(TRAF.flLayer);
     }
-    if(isSel && r?.d && !isNaN(r.d.lat) && !f.ground){
+    const fits = routeFits(f, r);
+    if(isSel && fits && !f.ground){
       L.polyline(gcPath([f.lat,f.lon],[r.d.lat,r.d.lon]),{color:"#29d3ff", weight:2, opacity:.85, dashArray:"6 6", interactive:false}).addTo(TRAF.flLayer);
     }
-    if(isSel && r){ [["DEP",r.o],["ARR",r.d]].forEach(([k,a])=>{ if(!a||isNaN(a.lat)) return;
+    if(isSel && fits){ [["DEP",r.o],["ARR",r.d]].forEach(([k,a])=>{ if(!a||isNaN(a.lat)) return;
       L.marker([a.lat,a.lon],{icon:L.divIcon({className:"", html:`<div style="font:700 10px var(--mono);color:#000;background:#29d3ff;padding:1px 4px;border-radius:2px;transform:translate(-50%,-140%);white-space:nowrap">${k} ${esc(a.icao||"")}</div>`, iconSize:[0,0]}), interactive:false, zIndexOffset:900}).addTo(TRAF.flLayer);
       L.circleMarker([a.lat,a.lon],{radius:4,color:"#29d3ff",weight:2,fillOpacity:0,interactive:false}).addTo(TRAF.flLayer); }); }
     const c = f.emerg ? "#ef4444" : f.ground ? "#6b7f95" : isSel ? "#ffd166" : "#ffb000";
-    const rt = r ? `<br><b style="color:#29d3ff">${esc(r.o?.icao||"?")} → ${esc(r.d?.icao||"?")}</b> <span style="color:#6b7f95">${esc(r.o?.city||"")} → ${esc(r.d?.city||"")} (reported)</span>` : "";
+    const rt = r ? (fits ? `<br><b style="color:#29d3ff">${esc(r.o?.icao||"?")} → ${esc(r.d?.icao||"?")}</b> <span style="color:#6b7f95">${esc(r.o?.city||"")} → ${esc(r.d?.city||"")} (reported)</span>` : `<br><span style="color:#6b7f95">route unverified</span>`) : "";
     L.marker([f.lat,f.lon],{icon:L.divIcon({className:"", html:planeSvg(c,f.trk), iconSize:[22,22], iconAnchor:[11,11]}), zIndexOffset:isSel?2000:1000})
       .bindTooltip(`<b>${esc(f.cs)}</b> ${esc(f.reg)} ${esc(f.type)}${rt}<br>${fmtAlt(f)} · ${f.gs}kt · ${String(Math.round(f.trk)).padStart(3,"0")}°${f.sq?" · SQK "+esc(f.sq):""}${f.emerg?`<br><b style="color:#ff8a8a">${esc(f.emerg)}</b>`:""}<br><span style="color:#6b7f95">near ${f.near.s.icao} (${Math.round(f.near.d)}nm) · click for trail &amp; route</span>`,{direction:"top"})
       .on("click",()=>selectFlight(f.hex,false))
       .addTo(TRAF.flLayer);
   });
   if(sel){ const f=S.fl.ac.find(x=>x.hex===sel); const r=f&&ROUTES[f.cs];
-    $("flSel").innerHTML = f ? `<b style="color:#ffd166">${esc(f.cs)}</b> ${esc(f.reg)} ${esc(f.type)} · ${fmtAlt(f)} · ${f.gs}kt${r?` · <b style="color:var(--cyan)">${esc(r.o?.icao||"?")}→${esc(r.d?.icao||"?")}</b> ${esc(r.o?.name||"")} → ${esc(r.d?.name||"")} <span style="color:var(--mute)">(reported route)</span>`:""} · <a href="https://globe.adsb.lol/?icao=${encodeURIComponent(f.hex)}" target="_blank" rel="noopener">adsb.lol ↗</a> · <a href="https://www.flightaware.com/live/flight/${encodeURIComponent(f.cs)}" target="_blank" rel="noopener">FlightAware ↗</a> · <a href="#" id="flClr">clear</a>` : "";
+    $("flSel").innerHTML = f ? `<b style="color:#ffd166">${esc(f.cs)}</b> ${esc(f.reg)} ${esc(f.type)} · ${fmtAlt(f)} · ${f.gs}kt${r?(routeFits(f,r)?` · <b style="color:var(--cyan)">${esc(r.o?.icao||"?")}→${esc(r.d?.icao||"?")}</b> ${esc(r.o?.name||"")} → ${esc(r.d?.name||"")} <span style="color:var(--mute)">(reported route, matches position)</span>`:` · <span style="color:var(--amber)">route unverified</span> <span style="color:var(--mute)">(listed ${esc(r.o?.icao||"?")}→${esc(r.d?.icao||"?")} doesn't match position — flight number likely reused)</span>`):""} · <a href="https://globe.adsb.lol/?icao=${encodeURIComponent(f.hex)}" target="_blank" rel="noopener">adsb.lol ↗</a> · <a href="https://www.flightaware.com/live/flight/${encodeURIComponent(f.cs)}" target="_blank" rel="noopener">FlightAware ↗</a> · <a href="#" id="flClr">clear</a>` : "";
     const c=$("flClr"); if(c) c.onclick=e=>{e.preventDefault(); TRAF.sel=null; renderFlights();};
   } else $("flSel").innerHTML = `<span style="color:var(--mute)">Click a plane or a row to show its trail and route.</span>`;
 }
