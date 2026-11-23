@@ -310,6 +310,11 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
 const STATIONS = [
  ["KMIA","MIA","Miami","United States","usa","US",25.795,-80.290,"AMER","Atlas base · LatAm gateway"],
  ["TJSJ","SJU","San Juan","Puerto Rico","usa","RQ",18.439,-66.002,"AMER",""],
+ ["KOPF","OPF","Miami Opa-locka","United States","usa","US",25.910,-80.283,"AMER","Executive / charter"],
+ ["KTEB","TEB","Teterboro","United States","usa","US",40.859,-74.056,"AMER","Executive / charter"],
+ ["KHPN","HPN","White Plains","United States","usa","US",41.062,-73.705,"AMER","Executive / charter"],
+ ["MDSD","SDQ","Santo Domingo","Dominican Republic","dom","DR",18.433,-69.667,"AMER",""],
+ ["MDPC","PUJ","Punta Cana","Dominican Republic","dom","DR",18.566,-68.356,"AMER",""],
  ["KJFK","JFK","New York","United States","usa","US",40.640,-73.779,"AMER","Atlas base"],
  ["KORD","ORD","Chicago","United States","usa","US",41.978,-87.905,"AMER","Atlas base"],
  ["KLAX","LAX","Los Angeles","United States","usa","US",33.942,-118.408,"AMER","Atlas base"],
@@ -323,6 +328,8 @@ const STATIONS = [
  ["KRFD","RFD","Rockford","United States","usa","US",42.195,-89.097,"AMER",""],
  ["KDOV","DOV","Dover AFB","United States","usa","US",39.130,-75.466,"AMER","AMC"],
  ["PANC","ANC","Anchorage","United States","usa","US",61.174,-149.996,"AMER","Atlas base · transpacific tech stop"],
+ ["PAED","EDF","Elmendorf AFB","United States","usa","US",61.250,-149.837,"AMER","AMC · JBER"],
+ ["PAFA","FAI","Fairbanks","United States","usa","US",64.803,-147.876,"AMER",""],
  ["PHNL","HNL","Honolulu","United States","usa","US",21.319,-157.922,"APAC",""],
  ["PGUM","GUM","Guam","Guam","usa","GQ",13.484,144.796,"APAC",""],
  ["MMMX","MEX","Mexico City","Mexico","mex","MX",19.436,-99.072,"AMER",""],
@@ -378,6 +385,7 @@ const MAPTILER_KEY = "zsqTmJaZFNpZrAcuh9hx";
 const ADV_SNAPSHOT_DATE = "2026-11-22";
 const ADV = {
  mex:[2,"2026-05-29","Exercise increased caution in Mexico due to terrorism, crime, and kidnapping. Some areas have increased risk."],
+ dom:[2,"2025-06-12","Exercise increased caution in the Dominican Republic due to crime. Violent crime is a concern despite more police presence in tourist areas."],
  pan:[2,"2026-08-19","Exercise increased caution in Panama due to crime. Some areas (Mosquito Gulf, Darién) have increased risk."],
  col:[3,"2026-03-31","Reconsider travel to Colombia due to crime, terrorism, civil unrest, kidnapping, and natural disasters."],
  ecu:[2,"2026-08-18","Exercise increased caution in Ecuador due to crime, terrorism, unrest, and kidnapping. Some areas have increased risk."],
@@ -1314,7 +1322,7 @@ function drawHourly(H){
 /* ============================================================
    WX BRIEFING — DEP / DEST / ALTN
    ============================================================ */
-const ISO2_3 = {MX:"mex",PA:"pan",CO:"col",EC:"ecu",PE:"per",CL:"chl",BR:"bra",AR:"arg",GB:"gbr",DE:"deu",BE:"bel",NL:"nld",FR:"fra",IT:"ita",ES:"esp",TR:"tur",AE:"are",QA:"qat",BH:"bhr",KW:"kwt",KE:"ken",ZA:"zaf",NG:"nga",JP:"jpn",KR:"kor",HK:"hkg",TW:"twn",CN:"chn",PH:"phl",TH:"tha",SG:"sgp",MY:"mys",IN:"ind",AU:"aus",NZ:"nzl"};
+const ISO2_3 = {DO:"dom",MX:"mex",PA:"pan",CO:"col",EC:"ecu",PE:"per",CL:"chl",BR:"bra",AR:"arg",GB:"gbr",DE:"deu",BE:"bel",NL:"nld",FR:"fra",IT:"ita",ES:"esp",TR:"tur",AE:"are",QA:"qat",BH:"bhr",KW:"kwt",KE:"ken",ZA:"zaf",NG:"nga",JP:"jpn",KR:"kor",HK:"hkg",TW:"twn",CN:"chn",PH:"phl",TH:"tha",SG:"sgp",MY:"mys",IN:"ind",AU:"aus",NZ:"nzl"};
 const US_LIKE = new Set(["US","PR","GU","VI","AS","MP"]);
 const BR = {layer:null, data:null};
 function parseEtd(v){
