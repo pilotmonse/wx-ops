@@ -1130,6 +1130,15 @@ function renderNat(){
 }
 function renderAll(){ renderStatus(); renderKpis(); renderFaa(); renderFlights(); renderNat(); renderRegions(); renderTable(); renderWatch(); renderMap(); }
 
+/* ---------- webcams (links; no key needed) ---------- */
+function camLinks(name, lat, lon, faaOk){
+  if(lat==null || lon==null) return "";
+  const q = encodeURIComponent(`${name} airport live webcam`);
+  const b = [`<a class="btn" target="_blank" rel="noopener" href="https://www.windy.com/-Webcams/webcams?${(+lat).toFixed(3)},${(+lon).toFixed(3)},11">📷 Windy webcams nearby ↗</a>`];
+  if(faaOk) b.push(`<a class="btn" target="_blank" rel="noopener" href="https://weathercams.faa.gov/map/${(lon-0.6).toFixed(3)},${(lat-0.3).toFixed(3)},${(+lon+0.6).toFixed(3)},${(+lat+0.3).toFixed(3)}">📷 FAA WeatherCams ↗</a>`);
+  b.push(`<a class="btn" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${q}&sp=EgJAAQ%253D%253D">▶ Live streams (YouTube) ↗</a>`);
+  return `<div class="btns">${b.join("")}</div>`;
+}
 /* ---------- drawer ---------- */
 let curIcao=null, newsAbort=null;
 function openDrawer(icao){
@@ -1187,6 +1196,8 @@ function openDrawer(icao){
       <p>${esc(r.a[2])}</p>
       <div class="btns"><a class="btn" target="_blank" rel="noopener" href="${advLink(s.iso)}">Full advisory ↗</a><a class="btn" target="_blank" rel="noopener" href="https://step.state.gov/">Enroll in STEP ↗</a><a class="btn" target="_blank" rel="noopener" href="https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html">All advisories ↗</a></div>
       <div class="m" style="margin-top:8px">Snapshot ${ADV_SNAPSHOT_DATE}; refreshed against the live State Dept feed when available. Always confirm on travel.state.gov.</div></div></div>`;
+  // webcams
+  h += `<div class="sec"><h3>WEBCAMS</h3><div style="color:var(--dim);font-size:11px">Live and recent camera views around ${esc(s.city)}: Windy's webcam map (images refreshed every few minutes)${s.iso==="usa"&&s.fips!=="GQ"?", the FAA's aviation weather cameras":""} and live YouTube streams of the airport.</div>${camLinks(s.city.replace(/ (AFB|AB)$/,""), s.lat, s.lon, s.iso==="usa" && s.fips!=="GQ")}</div>`;
   // news
   const qCity = encodeURIComponent(`"${s.city.replace(/ (AFB|AB)$/,"")}"`);
   h += `<div class="sec"><h3>LOCAL NEWS · LAST 72H</h3><div class="news" id="news"><span class="spin">Loading headlines…</span></div>
@@ -1394,6 +1405,7 @@ function renderBrief(){
         ${faa.length?`<br><span style="color:var(--L4)">FAA: ${faa.map(x=>esc(x.label+" "+x.detail)).join(" · ")}</span>`:""}
         ${(a.nws||[]).length?`<br><span style="color:#ff8a8a">NWS: ${a.nws.map(x=>esc(x.event)).join(" · ")}</span>`:""}
         <br>Security: ${advHtml}</div>
+      ${camLinks((a.name||id).replace(/ (Intl|Arpt|Airport|International).*$/i,"").split("/").pop(), a.lat, a.lon, ["US","PR","VI","CA"].includes(a.country))}
       <div class="rawbox">${esc(m?.raw||"No METAR available")}</div>
       ${m?`<div class="fx">${fmtWind(m.wind)} · vis ${esc(m.visTxt||"—")} · cig ${fmtCeil(m)} · ${m.temp??"–"}/${m.dew??"–"}°C · ${esc(m.altTxt||"")} · ${fmtAge(m.time?Math.round((Date.now()-m.time)/6e4):null)} old</div>`:""}
       ${a.taf?`<div class="rawbox" style="margin-top:6px;color:#9fe8b8">${esc(a.taf.raw).replace(/ (PROB\d{2} TEMPO|FM\d{6}|BECMG|TEMPO|PROB\d{2})/g,"\n  $1")}</div>${tafBars(a.taf, t)}`:""}
