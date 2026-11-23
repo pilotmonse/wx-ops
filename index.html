@@ -1241,7 +1241,7 @@ function openDrawer(icao){
   h += `<div class="sec"><h3>WEBCAMS</h3><div style="color:var(--dim);font-size:11px">Live and recent camera views around ${esc(s.city)}: Windy's webcam map (images refreshed every few minutes)${s.iso==="usa"&&s.fips!=="GQ"?", the FAA's aviation weather cameras":""} and live YouTube streams of the airport.</div>${camLinks(s.city.replace(/ (AFB|AB)$/,""), s.lat, s.lon, s.iso==="usa" && s.fips!=="GQ")}<div id="dCams"></div></div>`;
   // news
   const qCity = encodeURIComponent(`"${s.city.replace(/ (AFB|AB)$/,"")}"`);
-  h += `<div class="sec"><h3>LOCAL NEWS · LAST 72H</h3><div class="news" id="news"><span class="spin">Loading headlines…</span></div>
+  h += `<div class="sec"><h3>LOCAL NEWS · LAST 10 DAYS</h3><div class="news" id="news"><span class="spin">Loading headlines…</span></div>
     <div class="btns"><a class="btn" target="_blank" rel="noopener" href="https://news.google.com/search?q=${qCity}%20when%3A3d">Google News: ${esc(s.city)} ↗</a>
     <a class="btn" target="_blank" rel="noopener" href="https://news.google.com/search?q=${encodeURIComponent(s.iata+" airport OR "+s.icao)}%20when%3A7d">Airport news ↗</a>
     <a class="btn" target="_blank" rel="noopener" href="https://aviationweather.gov/data/metar/?ids=${s.icao}&taf=1">AWC ${s.icao} ↗</a></div></div>`;
@@ -1279,7 +1279,7 @@ async function loadNews(s){
   const bingQ = NEWSQ[s.icao]?.[0] || `"${city}" ${s.country}`;
   const tryQ = async q => { const w = Math.max(0, lastGdelt + 5500 - Date.now()); if(w) await new Promise(r=>setTimeout(r,w)); lastGdelt = Date.now(); const txt = await fetchText(`https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=ArtList&format=json&maxrecords=12&sort=DateDesc&timespan=3d`, 20000); if(!txt.trim().startsWith("{")) throw new Error(txt.slice(0,80)); return JSON.parse(txt).articles||[]; };
   const bing = async () => {
-    const rss = `https://www.bing.com/news/search?q=${encodeURIComponent(bingQ)}&format=rss`;
+    const rss = `https://www.bing.com/news/search?q=${encodeURIComponent(bingQ)}&qft=sortbydate%3d%221%22&format=rss`;
     const j = JSON.parse(await fetchText("https://api.rss2json.com/v1/api.json?rss_url="+encodeURIComponent(rss), 15000));
     if(j.status!=="ok") throw new Error(j.message||"feed error");
     return (j.items||[]).map(it=>{ let dom=""; try{ const real=new URL(it.link).searchParams.get("url"); dom=new URL(real||it.link).hostname.replace(/^www\./,""); }catch(e){}
@@ -1291,7 +1291,9 @@ async function loadNews(s){
     try{ arts = await bing(); }catch(e){ console.warn("bing news",e); }
     if(arts.length<3 && curIcao===s.icao){ try{ arts = arts.concat(await tryQ(`"${city}" sourcecountry:${s.fips}`)); }catch(e){ if(!arts.length) throw e; } }
     if(curIcao!==s.icao) return;
-    const seen=new Set(); arts = arts.filter(a=>{ const k=(a.title||"").toLowerCase(); if(seen.has(k)) return false; seen.add(k); return /^https?:\/\//.test(a.url); }).slice(0,10);
+    const ageD = a => { const m=(a.seendate||"").match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/); return m ? (Date.now()-Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5]))/864e5 : 0; };
+    const seen=new Set(); arts = arts.filter(a=>{ const k=(a.title||"").toLowerCase(); if(seen.has(k)) return false; seen.add(k); return /^https?:\/\//.test(a.url) && ageD(a) <= 10; })
+      .sort((x,y)=>ageD(x)-ageD(y)).slice(0,10);
     el().innerHTML = arts.length ? arts.map(a=>{ const d=a.seendate? a.seendate.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2}).*/,"$1-$2-$3 $4:$5Z"):""; return `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}<small>${[a.domain,a.language,d].filter(Boolean).map(esc).join(" · ")}</small></a>`; }).join("") : `<span style="color:var(--dim)">No recent headlines indexed — use the links below.</span>`;
   }catch(e){ if(curIcao===s.icao && el()) el().innerHTML = `<span style="color:var(--dim)">Headline feed busy or unavailable (${esc(e.message.slice(0,60))}). Use the links below.</span>`; }
 }
