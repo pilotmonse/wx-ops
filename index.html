@@ -1037,11 +1037,12 @@ function initSigmets(){
   if(!map) return;
   map.createPane("sigPane"); map.getPane("sigPane").style.zIndex = 370;
   SIGF.layer = L.layerGroup().addTo(map);
+  map.on("moveend", ()=>{ if(SIGF.lastLon==null || Math.abs(map.getCenter().lng - SIGF.lastLon) > 90) renderSigmets(); });
   $("tgSig").onclick = ()=>{ SIGF.show=!SIGF.show; $("tgSig").classList.toggle("on",SIGF.show); SIGF.show?SIGF.layer.addTo(map):map.removeLayer(SIGF.layer); };
 }
 function renderSigmets(){
   if(!SIGF.layer || !S.sig) return;
-  SIGF.layer.clearLayers();
+  SIGF.layer.clearLayers(); SIGF.lastLon = map.getCenter().lng;
   S.sig.forEach(x=>{ const c = SIGCOL(x.hazard);
     x.polys.forEach(p=>{ const pts = unwrapPoly(p, map.getCenter().lng);
       const tip = `<b style="color:${c}">SIGMET ${esc(sigLabel(x))}</b>${x.active?"":" <span style='color:#ffb000'>(upcoming)</span>"}<br>${esc(x.fir)} · ${esc(sigLevels(x))}<br>${x.from&&x.to?fmtZT(x.from)+" – "+fmtZT(x.to):""}<br><span style="color:#6b7f95;white-space:normal;display:block;max-width:380px">${esc(x.raw.replace(/\s+/g," ").slice(0,260))}</span>`;
