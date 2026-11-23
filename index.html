@@ -139,6 +139,14 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
 .btn{border:1px solid var(--line2);padding:5px 10px;color:var(--cyan);font-size:11px}
 .foot{color:var(--mute);font-size:10px;line-height:1.6;margin-top:16px}
 .spin{color:var(--amber)}
+.camgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:8px}
+.cam{display:block;background:#03060a;border:1px solid var(--line2);color:var(--txt);text-decoration:none}
+.cam:hover{border-color:var(--cyan);text-decoration:none}
+.cam img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#0a1018}
+.cam div{padding:4px 6px;font-size:10px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cam small{color:var(--dim)}
+.camcredit{font-size:10px;color:var(--dim);margin-top:6px}
+
 .bform{display:flex;flex-wrap:wrap;gap:10px 14px;padding:12px;border-bottom:1px solid var(--line);align-items:flex-end;background:#070c13}
 .bform label{display:flex;flex-direction:column;gap:4px;color:var(--dim);font-size:9px;letter-spacing:.16em}
 .bform input{background:#03060a;border:1px solid var(--line2);color:#fff;font-family:var(--mono);font-size:14px;padding:6px 8px;width:96px;text-transform:uppercase;letter-spacing:.08em}
@@ -278,7 +286,7 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
   </section>
 
   <div class="foot">
-    Data: METAR/TAF — Norwegian Meteorological Institute (api.met.no, relaying WMO/ICAO reports) · 3-day &amp; hourly forecast — Open-Meteo (open-meteo.com, model blend) · US watches/warnings — NWS api.weather.gov · ATC ground stops/GDPs/delays — FAA NAS Status (nasstatus.faa.gov, relayed via Jina Reader r.jina.ai) · Briefing — airport data and SIGMETs from aviationweather.gov (NOAA/NWS AWC) · Atlas group flights — live ADS-B and recent tracks from adsb.lol community receivers (ODbL), reported routes from adsbdb.com · North Atlantic Tracks — FAA NOTAM Search (nms.aim.faa.gov) · Travel advisories — U.S. Department of State (travel.state.gov) snapshot of 22 Nov 2026, checked live against the State Dept RSS on load · News — Bing News RSS (via rss2json) with GDELT fallback · Map © MapTiler © OpenStreetMap contributors (CARTO fallback) · Satellite IR — NASA GIBS (GOES/Himawari) &amp; EUMETSAT · Radar — RainViewer (global mosaic), NEXRAD via Iowa Environmental Mesonet · Satellite precipitation — NASA IMERG.<br>
+    Data: METAR/TAF — Norwegian Meteorological Institute (api.met.no, relaying WMO/ICAO reports) · 3-day &amp; hourly forecast — Open-Meteo (open-meteo.com, model blend) · US watches/warnings — NWS api.weather.gov · ATC ground stops/GDPs/delays — FAA NAS Status (nasstatus.faa.gov, relayed via Jina Reader r.jina.ai) · Webcams — Windy.com Webcams API, FAA WeatherCams · Briefing — airport data and SIGMETs from aviationweather.gov (NOAA/NWS AWC) · Atlas group flights — live ADS-B and recent tracks from adsb.lol community receivers (ODbL), reported routes from adsbdb.com · North Atlantic Tracks — FAA NOTAM Search (nms.aim.faa.gov) · Travel advisories — U.S. Department of State (travel.state.gov) snapshot of 22 Nov 2026, checked live against the State Dept RSS on load · News — Bing News RSS (via rss2json) with GDELT fallback · Map © MapTiler © OpenStreetMap contributors (CARTO fallback) · Satellite IR — NASA GIBS (GOES/Himawari) &amp; EUMETSAT · Radar — RainViewer (global mosaic), NEXRAD via Iowa Environmental Mesonet · Satellite precipitation — NASA IMERG.<br>
     Unofficial personal project — not affiliated with, endorsed by, or an official tool of Atlas Air Worldwide.<br>
     Situational awareness only. Not for flight planning or dispatch — always use official briefing sources (company dispatch, FAA/1800wxbrief, local AIS). Station list is a representative Atlas Air network sample; edit the STATIONS array in this file to add or remove airports.
   </div>
@@ -1139,6 +1147,31 @@ function camLinks(name, lat, lon, faaOk){
   b.push(`<a class="btn" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${q}&sp=EgJAAQ%253D%253D">▶ Live streams (YouTube) ↗</a>`);
   return `<div class="btns">${b.join("")}</div>`;
 }
+/* ---------- Windy Webcams API (free tier: image links expire after 10 min, attribution required) ---------- */
+const WINDY_KEY = "TfV7ZMRuSeJACPmtEE1wzBnSXhvfeiBb";   // locked to allowed domains in the Windy account
+async function loadCams(el, lat, lon, limit=6, km=25){
+  if(!el || !WINDY_KEY || lat==null) return;
+  el.innerHTML = `<div class="spin" style="font-size:11px;margin-top:8px">Loading nearby webcams…</div>`;
+  try{
+    const c = new AbortController(); const tm = setTimeout(()=>c.abort(), 12000);
+    const r = await fetch(`https://api.windy.com/webcams/api/v3/webcams?nearby=${(+lat).toFixed(3)},${(+lon).toFixed(3)},${km}&limit=${limit}&include=images,location,urls,player&sortKey=popularity&sortDirection=desc`,
+      {headers:{"x-windy-api-key":WINDY_KEY}, signal:c.signal});
+    clearTimeout(tm);
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const j = await r.json(); const cams = (j.webcams||[]).filter(w=>w.images?.current?.preview);
+    if(!cams.length){ el.innerHTML = `<div style="color:var(--dim);font-size:11px;margin-top:8px">No Windy webcams within ${km} km — try the links.</div>`; return; }
+    el.innerHTML = `<div class="camgrid">${cams.map(w=>{
+      const dist = gcNm(lat,lon,w.location?.latitude,w.location?.longitude)*1.852;
+      const upd = w.lastUpdatedOn ? Math.round((Date.now()-Date.parse(w.lastUpdatedOn))/6e4) : null;
+      const href = w.urls?.detail || `https://www.windy.com/webcams/${w.webcamId}`;
+      const safe = /^https:\/\//.test(href) ? href : `https://www.windy.com/webcams/${encodeURIComponent(w.webcamId)}`;
+      const img = w.images.current.preview; const imgOk = /^https:\/\//.test(img);
+      return `<a class="cam" href="${esc(safe)}" target="_blank" rel="noopener" title="${esc(w.title||"")}">${imgOk?`<img loading="lazy" src="${esc(img)}" alt="${esc(w.title||"webcam")}">`:""}<div>${esc(w.title||"Webcam")}<br><small>${isNaN(dist)?"":Math.round(dist)+" km · "}${upd==null?"":upd<60?upd+" min ago":Math.round(upd/60)+" h ago"}</small></div></a>`; }).join("")}</div>
+      <div class="camcredit">Webcams provided by <a href="https://www.windy.com/webcams" target="_blank" rel="noopener">Windy.com</a> · click a camera for the live view / timelapse</div>`;
+  }catch(e){
+    el.innerHTML = `<div style="color:var(--dim);font-size:11px;margin-top:8px">Camera previews unavailable right now (${esc(String(e.message||e).slice(0,40))}) — use the links above.</div>`;
+  }
+}
 /* ---------- drawer ---------- */
 let curIcao=null, newsAbort=null;
 function openDrawer(icao){
@@ -1197,7 +1230,7 @@ function openDrawer(icao){
       <div class="btns"><a class="btn" target="_blank" rel="noopener" href="${advLink(s.iso)}">Full advisory ↗</a><a class="btn" target="_blank" rel="noopener" href="https://step.state.gov/">Enroll in STEP ↗</a><a class="btn" target="_blank" rel="noopener" href="https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html">All advisories ↗</a></div>
       <div class="m" style="margin-top:8px">Snapshot ${ADV_SNAPSHOT_DATE}; refreshed against the live State Dept feed when available. Always confirm on travel.state.gov.</div></div></div>`;
   // webcams
-  h += `<div class="sec"><h3>WEBCAMS</h3><div style="color:var(--dim);font-size:11px">Live and recent camera views around ${esc(s.city)}: Windy's webcam map (images refreshed every few minutes)${s.iso==="usa"&&s.fips!=="GQ"?", the FAA's aviation weather cameras":""} and live YouTube streams of the airport.</div>${camLinks(s.city.replace(/ (AFB|AB)$/,""), s.lat, s.lon, s.iso==="usa" && s.fips!=="GQ")}</div>`;
+  h += `<div class="sec"><h3>WEBCAMS</h3><div style="color:var(--dim);font-size:11px">Live and recent camera views around ${esc(s.city)}: Windy's webcam map (images refreshed every few minutes)${s.iso==="usa"&&s.fips!=="GQ"?", the FAA's aviation weather cameras":""} and live YouTube streams of the airport.</div>${camLinks(s.city.replace(/ (AFB|AB)$/,""), s.lat, s.lon, s.iso==="usa" && s.fips!=="GQ")}<div id="dCams"></div></div>`;
   // news
   const qCity = encodeURIComponent(`"${s.city.replace(/ (AFB|AB)$/,"")}"`);
   h += `<div class="sec"><h3>LOCAL NEWS · LAST 72H</h3><div class="news" id="news"><span class="spin">Loading headlines…</span></div>
@@ -1210,6 +1243,7 @@ function openDrawer(icao){
   if(f?.daily) loadHourly(s);
   if(s.iso==="usa" && s.fips!=="GQ") loadNws(s);
   loadNews(s);
+  loadCams($("dCams"), s.lat, s.lon, 6);
 }
 function closeDrawer(){ $("drawer").classList.remove("open"); $("scrim").classList.remove("on"); curIcao=null; }
 $("dClose").onclick = closeDrawer; $("scrim").onclick = closeDrawer;
@@ -1405,7 +1439,7 @@ function renderBrief(){
         ${faa.length?`<br><span style="color:var(--L4)">FAA: ${faa.map(x=>esc(x.label+" "+x.detail)).join(" · ")}</span>`:""}
         ${(a.nws||[]).length?`<br><span style="color:#ff8a8a">NWS: ${a.nws.map(x=>esc(x.event)).join(" · ")}</span>`:""}
         <br>Security: ${advHtml}</div>
-      ${camLinks((a.name||id).replace(/ (Intl|Arpt|Airport|International).*$/i,"").split("/").pop(), a.lat, a.lon, ["US","PR","VI","CA"].includes(a.country))}
+      ${camLinks((a.name||id).replace(/ (Intl|Arpt|Airport|International).*$/i,"").split("/").pop(), a.lat, a.lon, ["US","PR","VI","CA"].includes(a.country))}<div class="bcams" data-lat="${a.lat??""}" data-lon="${a.lon??""}"></div>
       <div class="rawbox">${esc(m?.raw||"No METAR available")}</div>
       ${m?`<div class="fx">${fmtWind(m.wind)} · vis ${esc(m.visTxt||"—")} · cig ${fmtCeil(m)} · ${m.temp??"–"}/${m.dew??"–"}°C · ${esc(m.altTxt||"")} · ${fmtAge(m.time?Math.round((Date.now()-m.time)/6e4):null)} old</div>`:""}
       ${a.taf?`<div class="rawbox" style="margin-top:6px;color:#9fe8b8">${esc(a.taf.raw).replace(/ (PROB\d{2} TEMPO|FM\d{6}|BECMG|TEMPO|PROB\d{2})/g,"\n  $1")}</div>${tafBars(a.taf, t)}`:""}
@@ -1422,6 +1456,7 @@ function renderBrief(){
       <div style="color:var(--mute);font-size:10px;margin-top:8px">Sources: METAR/TAF api.met.no · airport data & SIGMETs aviationweather.gov · model Open-Meteo · NWS · State Dept. Situational awareness only — use your official dispatch/flight-planning briefing.</div></div>`;
   ["bCopy","bLink","bClear"].forEach(i=>$(i).style.display="");
   drawBriefMap();
+  document.querySelectorAll('#bOut .bcams').forEach(el=>{ if(el.dataset.lat) loadCams(el, +el.dataset.lat, +el.dataset.lon, 3); });
 }
 function drawBriefMap(){
   if(!map) return; const B = BR.data;
