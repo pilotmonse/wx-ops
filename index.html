@@ -201,7 +201,7 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
         <div class="grp"><label>PRECIP</label>
           <button class="chip on" data-rad="">OFF</button><button class="chip" data-rad="rv">RADAR LOOP</button><button class="chip" data-rad="nexrad">US NEXRAD</button><button class="chip" data-rad="imerg">SAT PRECIP</button></div>
         <div class="grp"><label>TRAFFIC</label>
-          <button class="chip on" id="tgFl" title="Atlas Air group flights (live ADS-B)">✈ ATLAS FLIGHTS</button><button class="chip on" id="tgNat" title="Active North Atlantic Tracks">NAT TRACKS</button></div>
+          <button class="chip on" id="tgFl" title="Atlas Air group flights (live ADS-B)">✈ ATLAS FLIGHTS</button><button class="chip on" id="tgNat" title="Active North Atlantic Tracks">NAT TRACKS</button><button class="chip on" id="tgSig" title="Active SIGMETs worldwide">⚠ SIGMETS <span id="sigCount" style="font-size:9px"></span></button><span style="font-size:9px;color:var(--dim);margin-left:4px"><span style="color:#ef4444">■</span>TS <span style="color:#ffb000">■</span>TURB/MTW <span style="color:#29d3ff">■</span>ICE <span style="color:#d946ef">■</span>VA</span></div>
         <div class="grp ctl"><button class="chip" id="rvPlay" title="Play / pause radar loop">❚❚</button><span id="rvTime">—</span>
           <a class="chip" href="https://skyvector.com/" target="_blank" rel="noopener" style="text-decoration:none" title="Open SkyVector charts, satellite and weather layers">SKYVECTOR ↗</a>
           <label>OPACITY</label><input type="range" id="wxOp" min="20" max="100" value="85"></div>
@@ -286,7 +286,7 @@ td.ic b{color:#fff;font-size:13px} td.ic small{color:var(--dim);margin-left:6px}
   </section>
 
   <div class="foot">
-    Data: METAR/TAF — Norwegian Meteorological Institute (api.met.no, relaying WMO/ICAO reports) · 3-day &amp; hourly forecast — Open-Meteo (open-meteo.com, model blend) · US watches/warnings — NWS api.weather.gov · ATC ground stops/GDPs/delays — FAA NAS Status (nasstatus.faa.gov, relayed via Jina Reader r.jina.ai) · Webcams — Windy.com Webcams API, FAA WeatherCams · Briefing — airport data and SIGMETs from aviationweather.gov (NOAA/NWS AWC) · Atlas group flights — live ADS-B and recent tracks from adsb.lol community receivers (ODbL), reported routes from adsbdb.com · North Atlantic Tracks — FAA NOTAM Search (nms.aim.faa.gov) · Travel advisories — U.S. Department of State (travel.state.gov) snapshot of 22 Nov 2026, checked live against the State Dept RSS on load · News — Bing News RSS (via rss2json) with GDELT fallback · Map © MapTiler © OpenStreetMap contributors (CARTO fallback) · Satellite IR — NASA GIBS (GOES/Himawari) &amp; EUMETSAT · Radar — RainViewer (global mosaic), NEXRAD via Iowa Environmental Mesonet · Satellite precipitation — NASA IMERG.<br>
+    Data: METAR/TAF — Norwegian Meteorological Institute (api.met.no, relaying WMO/ICAO reports) · 3-day &amp; hourly forecast — Open-Meteo (open-meteo.com, model blend) · US watches/warnings — NWS api.weather.gov · ATC ground stops/GDPs/delays — FAA NAS Status (nasstatus.faa.gov, relayed via Jina Reader r.jina.ai) · SIGMETs — aviationweather.gov (international + US convective) · Webcams — Windy.com Webcams API, FAA WeatherCams · Briefing — airport data and SIGMETs from aviationweather.gov (NOAA/NWS AWC) · Atlas group flights — live ADS-B and recent tracks from adsb.lol community receivers (ODbL), reported routes from adsbdb.com · North Atlantic Tracks — FAA NOTAM Search (nms.aim.faa.gov) · Travel advisories — U.S. Department of State (travel.state.gov) snapshot of 22 Nov 2026, checked live against the State Dept RSS on load · News — Bing News RSS (via rss2json) with GDELT fallback · Map © MapTiler © OpenStreetMap contributors (CARTO fallback) · Satellite IR — NASA GIBS (GOES/Himawari) &amp; EUMETSAT · Radar — RainViewer (global mosaic), NEXRAD via Iowa Environmental Mesonet · Satellite precipitation — NASA IMERG.<br>
     Unofficial personal project — not affiliated with, endorsed by, or an official tool of Atlas Air Worldwide.<br>
     Situational awareness only. Not for flight planning or dispatch — always use official briefing sources (company dispatch, FAA/1800wxbrief, local AIS). Station list is a representative Atlas Air network sample; edit the STATIONS array in this file to add or remove airports.
   </div>
@@ -429,7 +429,7 @@ const CATS = ["VFR","MVFR","IFR","LIFR"];
 const CAT_RANK = {VFR:0,MVFR:1,IFR:2,LIFR:3,UNK:-1};
 
 /* ---------- state ---------- */
-const S = {metar:{}, taf:{}, fc:{}, faa:null, region:"ALL", catFilter:null, q:"", sort:{k:"cat",dir:-1}, src:{metar:"wait",taf:"wait",fc:"wait",adv:"wait",faa:"wait",fl:"wait",nat:"wait"}, advLive:{}, fl:null, nat:null};
+const S = {metar:{}, taf:{}, fc:{}, faa:null, region:"ALL", catFilter:null, q:"", sort:{k:"cat",dir:-1}, src:{metar:"wait",taf:"wait",fc:"wait",adv:"wait",faa:"wait",fl:"wait",nat:"wait",sig:"wait"}, advLive:{}, fl:null, nat:null};
 const byIcao = Object.fromEntries(STATIONS.map(s=>[s.icao,s]));
 
 /* ---------- helpers ---------- */
@@ -775,7 +775,7 @@ function renderStatus(){
   const t = d => d ? d.toISOString().slice(11,16)+"Z" : "";
   $("status").innerHTML = [
     ["METAR",S.src.metar,t(S.src.metarAt)],["TAF",S.src.taf,t(S.src.tafAt)],["FCST",S.src.fc,t(S.src.fcAt)],
-    ["FAA NAS",S.src.faa,t(S.src.faaAt)],["ADS-B",S.src.fl,t(S.src.flAt)],["NAT",S.src.nat,t(S.src.natAt)],
+    ["FAA NAS",S.src.faa,t(S.src.faaAt)],["ADS-B",S.src.fl,t(S.src.flAt)],["NAT",S.src.nat,t(S.src.natAt)],["SIGMET",S.src.sig,t(S.src.sigAt)],
     ["STATE DEPT",S.src.adv, S.src.adv==="ok"?"LIVE+SNAP":S.src.adv==="snap"?"SNAPSHOT":""]
   ].map(([n,st,tm])=>`<i class="${lab[st]||"wait"}">${n} ${st==="err"?"✕":st==="wait"?"…":"●"} ${tm}</i>`).join("");
 }
@@ -840,6 +840,7 @@ function renderWatch(){
     if(r.gust3>=35) items.push({p:4, r, tag:"WIND", c:"var(--amber)", t:`${r.s.icao} ${r.s.city} — model gusts to ${Math.round(r.gust3)}kt (72h)`, d:"Open-Meteo daily max 10 m gust"});
     if(r.lvl>=3) items.push({p:3+r.lvl/10, r, tag:"L"+r.lvl, c:lvlColor(r.lvl), t:`${r.s.icao} ${r.s.country} — ${LVL_TXT[r.lvl]}`, d:r.a[2]});
   });
+  STATIONS.filter(st=>S.region==="ALL"||st.region===S.region).forEach(st=>{ sigsAt(st.lat,st.lon).filter(x=>x.active).forEach(x=>items.push({p:/TS|CONV|VA|TC/.test(x.hazard)?11:9, r:{s:st}, tag:"SIGMET", c:SIGCOL(x.hazard), t:`${st.icao} ${st.city} — under SIGMET ${sigLabel(x)}`, d:`${x.fir} · ${sigLevels(x)} · until ${x.to?fmtZT(x.to):"?"}`})); });
   (S.fl?.ac||[]).filter(f=>f.emerg).forEach(f=>items.push({p:99, r:{s:f.near.s}, tag:"SQK "+f.sq, c:"var(--IFR)", t:`${f.cs} ${f.reg} — ${f.emerg} (squawk ${f.sq})`, d:`${fmtAlt(f)} · ${f.gs}kt · ${Math.round(f.near.d)}nm from ${f.near.s.icao}`}));
   items.sort((a,b)=>b.p-a.p);
   $("watch").innerHTML = items.length ? items.map(x=>`<div class="w" data-i="${x.r.s.icao}"><span class="tag" style="background:${x.c}">${x.tag}</span><div class="t"><b>${esc(x.t)}</b><div>${esc(x.d)}</div></div></div>`).join("") : `<div class="empty">All clear — no IFR, high-wind or L3+ items in view.</div>`;
@@ -995,6 +996,62 @@ function renderFaa(){
 }
 $("faaGa").onclick = ()=>{ faaShowGa=!faaShowGa; renderFaa(); };
 
+
+/* ============================================================
+   SIGMETS — worldwide (international + US), map layer, watchlist, station panel
+   ============================================================ */
+function sigPolys(raw){
+  const c = raw.coords || []; const list = Array.isArray(c[0]) ? c : [c];
+  return list.map(p=>(p||[]).map(q=>({lat:+q.lat, lon:+q.lon})).filter(q=>!isNaN(q.lat)&&!isNaN(q.lon))).filter(p=>p.length);
+}
+function unwrapPoly(poly, refLon){
+  const P = poly.map(c=>[c.lat, c.lon]);
+  for(let i=1;i<P.length;i++){ while(P[i][1]-P[i-1][1]>180) P[i][1]-=360; while(P[i][1]-P[i-1][1]<-180) P[i][1]+=360; }
+  const cx = P.reduce((a,c)=>a+c[1],0)/P.length, sh = 360*Math.round((cx-(refLon??0))/360);
+  return P.map(([a,b])=>[a,b-sh]);
+}
+const SIGCOL = h => /TS|CONV/.test(h)?"#ef4444" : /TURB|MTW/.test(h)?"#ffb000" : /ICE/.test(h)?"#29d3ff" : /VA|RDOACT/.test(h)?"#d946ef" : /TC/.test(h)?"#a855f7" : "#f97316";
+const SIGF = {show:true, layer:null};
+async function loadSigmets(){
+  try{
+    const [a,b] = await Promise.all([
+      relayJSON("https://aviationweather.gov/api/data/isigmet?format=json").catch(()=>null),
+      relayJSON("https://aviationweather.gov/api/data/airsigmet?format=json").catch(()=>null)]);
+    if(!Array.isArray(a) && !Array.isArray(b)) throw new Error("no SIGMET data");
+    const now = Date.now(), out = [];
+    const add = (raw, src) => { const polys = sigPolys(raw); if(!polys.length) return;
+      const from = (raw.validTimeFrom||0)*1000, to = (raw.validTimeTo||0)*1000; if(to && to < now) return;
+      if(src==="US" && raw.airSigmetType && raw.airSigmetType!=="SIGMET") return;   // skip AIRMETs/outlooks
+      out.push({src, hazard: raw.hazard || "", fir: raw.firName || raw.firId || raw.icaoId || (src==="US"?"US":""), qual: raw.qualifier || raw.severity || "",
+        base: raw.base ?? raw.altitudeLow1 ?? null, top: raw.top ?? raw.altitudeHi1 ?? null, from:new Date(from), to:new Date(to), raw: raw.rawSigmet || raw.rawAirSigmet || "", polys, active: from<=now}); };
+    (a||[]).forEach(x=>add(x,"INTL")); (b||[]).forEach(x=>add(x,"US"));
+    S.sig = out; S.src.sig="ok"; S.src.sigAt=new Date();
+  }catch(e){ S.src.sig="err"; console.warn("SIGMETs",e); }
+}
+const sigLevels = x => (x.base!=null||x.top!=null) ? `${x.base?("FL"+String(Math.round(x.base/100)).padStart(3,"0")):"SFC"}–${x.top?("FL"+String(Math.round(x.top/100)).padStart(3,"0")):"?"}` : "";
+const sigLabel = x => `${HAZ[x.hazard]||x.hazard||"SIGMET"}${x.qual?" "+x.qual:""}`;
+function sigsAt(lat, lon, nm=0){
+  return (S.sig||[]).filter(x=>x.polys.some(p=> (p.length>2 && inPoly(lat,lon,p)) || (nm && p.some(c=>gcNm(lat,lon,c.lat,c.lon)<nm))));
+}
+function initSigmets(){
+  if(!map) return;
+  map.createPane("sigPane"); map.getPane("sigPane").style.zIndex = 370;
+  SIGF.layer = L.layerGroup().addTo(map);
+  $("tgSig").onclick = ()=>{ SIGF.show=!SIGF.show; $("tgSig").classList.toggle("on",SIGF.show); SIGF.show?SIGF.layer.addTo(map):map.removeLayer(SIGF.layer); };
+}
+function renderSigmets(){
+  if(!SIGF.layer || !S.sig) return;
+  SIGF.layer.clearLayers();
+  S.sig.forEach(x=>{ const c = SIGCOL(x.hazard);
+    x.polys.forEach(p=>{ const pts = unwrapPoly(p, map.getCenter().lng);
+      const tip = `<b style="color:${c}">SIGMET ${esc(sigLabel(x))}</b>${x.active?"":" <span style='color:#ffb000'>(upcoming)</span>"}<br>${esc(x.fir)} · ${esc(sigLevels(x))}<br>${x.from&&x.to?fmtZT(x.from)+" – "+fmtZT(x.to):""}<br><span style="color:#6b7f95;white-space:normal;display:block;max-width:380px">${esc(x.raw.replace(/\s+/g," ").slice(0,260))}</span>`;
+      (pts.length>2 ? L.polygon(pts,{pane:"sigPane", color:c, weight:1.4, opacity:x.active?.9:.5, dashArray:x.active?null:"5 5", fillColor:c, fillOpacity:x.active?.14:.05})
+                    : L.polyline(pts,{pane:"sigPane", color:c, weight:2.5, opacity:.9}))
+        .bindTooltip(tip,{sticky:true}).addTo(SIGF.layer);
+    }); });
+  const act = S.sig.filter(x=>x.active);
+  $("sigCount").textContent = `${act.length} active`;
+}
 /* ---------- flights & NAT rendering ---------- */
 const TRAF = {showFl:true, showNat:true, flLayer:null, natLayer:null, sel:null};
 const planeSvg = (c,rot) => `<svg width="22" height="22" viewBox="-12 -12 24 24" style="transform:rotate(${rot}deg);filter:drop-shadow(0 0 3px rgba(0,0,0,.9))"><path d="M0,-10 L1.6,-3 L9,1.5 L9,3 L1.6,1.2 L1.2,6.5 L3.5,8.5 L3.5,9.8 L0,8.8 L-3.5,9.8 L-3.5,8.5 L-1.2,6.5 L-1.6,1.2 L-9,3 L-9,1.5 L-1.6,-3 Z" fill="${c}" stroke="#000" stroke-width=".8"/></svg>`;
@@ -1144,7 +1201,7 @@ function renderNat(){
     L.marker(t.pts[0],{icon:L.divIcon({className:"", html:`<div style="font:700 10px var(--mono);color:#000;background:${c};padding:0 3px;border-radius:2px;transform:translate(${t.dir==="E"?"-120%":"20%"},-50%);white-space:nowrap">${t.id}</div>`, iconSize:[0,0]}), interactive:false}).addTo(TRAF.natLayer);
   });
 }
-function renderAll(){ renderStatus(); renderKpis(); renderFaa(); renderFlights(); renderNat(); renderRegions(); renderTable(); renderWatch(); renderMap(); }
+function renderAll(){ renderStatus(); renderKpis(); renderFaa(); renderFlights(); renderNat(); renderSigmets(); renderRegions(); renderTable(); renderWatch(); renderMap(); }
 
 /* ---------- webcams (links; no key needed) ---------- */
 function camLinks(name, lat, lon, faaOk){
@@ -1219,6 +1276,9 @@ function openDrawer(icao){
       <div style="position:relative;margin-top:10px"><canvas id="hchart"></canvas><div class="ctip" id="ctip"></div></div>
       <div style="color:var(--dim);font-size:10px;margin-top:4px">72H HOURLY · <span style="color:var(--amber)">━ TEMP °C</span> · <span style="color:var(--cyan)">▮ GUST KT</span> · <span style="color:#6b8cff">▒ PRECIP %</span> · <span style="color:var(--IFR)">┄ VIS &lt;5km</span></div></div>`;
   }
+  // SIGMETs over / near the station
+  { const sg = sigsAt(s.lat, s.lon, 50);
+    h += `<div class="sec"><h3>SIGMETS · OVER OR WITHIN 50 NM</h3>${!S.sig ? `<span style="color:var(--dim)">SIGMET feed ${S.src.sig==="err"?"unavailable":"loading…"}.</span>` : sg.length ? sg.map(x=>`<div class="adv" style="--c:${SIGCOL(x.hazard)};margin-bottom:6px"><div class="h"><span class="lv" style="background:${SIGCOL(x.hazard)}">${esc(sigLabel(x))}</span><b style="color:#fff">${esc(x.fir)}</b><span class="m">${esc(sigLevels(x))} · ${x.from&&x.to?fmtZT(x.from)+"–"+fmtZT(x.to):""}${x.active?"":" · upcoming"}</span></div><div class="m" style="white-space:pre-wrap">${esc(x.raw.slice(0,500))}</div></div>`).join("") : `<span style="color:var(--green)">No active SIGMET over or within 50 nm of ${esc(s.icao)}.</span>`}</div>`; }
   // FAA NAS status
   if(s.iso==="usa"){
     const fx = faaFor(s.icao);
@@ -1419,13 +1479,12 @@ async function runBrief(dep, dest, alts, etdV, eteV){
   const route = gcPath([D.lat,D.lon],[A.lat,A.lon], Math.max(8, Math.round(dist/40)));
   const sigs = [];
   const consider = (raw, src) => {
-    const poly = (raw.coords||[]).map(c=>({lat:+c.lat, lon:+c.lon})).filter(c=>!isNaN(c.lat));
-    if(!poly.length) return;
+    const polys = sigPolys(raw); if(!polys.length) return;
     const from = new Date((raw.validTimeFrom||0)*1000), to = new Date((raw.validTimeTo||0)*1000);
     if(raw.validTimeTo && (to < etd || from > eta)) return;
-    const hit = route.some(([la,lo]) => (poly.length>2 && inPoly(la,lo,poly)) || poly.some(c=>gcNm(la,lo,c.lat,c.lon) < 100));
+    const hit = route.some(([la,lo]) => polys.some(poly => (poly.length>2 && inPoly(la,lo,poly)) || poly.some(c=>gcNm(la,lo,c.lat,c.lon) < 100)));
     if(hit) sigs.push({src, hazard: raw.hazard || raw.airSigmetType || "", fir: raw.firName || raw.firId || raw.icaoId || "", qual: raw.qualifier || raw.severity || "",
-      base: raw.base ?? raw.altitudeLow1 ?? null, top: raw.top ?? raw.altitudeHi1 ?? null, from, to, raw: raw.rawSigmet || raw.rawAirSigmet || "", poly});
+      base: raw.base ?? raw.altitudeLow1 ?? null, top: raw.top ?? raw.altitudeHi1 ?? null, from, to, raw: raw.rawSigmet || raw.rawAirSigmet || "", polys});
   };
   (Array.isArray(isig)?isig:[]).forEach(x=>consider(x,"INTL"));
   (Array.isArray(usig)?usig:[]).forEach(x=>consider(x,"US"));
@@ -1481,9 +1540,9 @@ function drawBriefMap(){
   if(!BR.layer) BR.layer = L.layerGroup().addTo(map);
   BR.layer.clearLayers(); if(!B) return;
   L.polyline(B.route,{color:"#e879f9", weight:2.5, opacity:.9}).bindTooltip(`Briefing route ${B.dep} → ${B.dest} · ${Math.round(B.dist)} nm`,{sticky:true}).addTo(BR.layer);
-  B.sigs.forEach(x=>{ const pts = x.poly.map(c=>[c.lat, c.lon - 360*Math.round((c.lon - B.route[0][1])/360)]);
+  B.sigs.forEach(x=> x.polys.forEach(poly=>{ const pts = unwrapPoly(poly, B.route[0][1]);
     (pts.length>2 ? L.polygon(pts,{color:"#ef4444",weight:1.5,fillOpacity:.15}) : L.polyline(pts,{color:"#ef4444",weight:2}))
-      .bindTooltip(`SIGMET ${esc(HAZ[x.hazard]||x.hazard)} · ${esc(x.fir)}`,{sticky:true}).addTo(BR.layer); });
+      .bindTooltip(`SIGMET ${esc(HAZ[x.hazard]||x.hazard)} · ${esc(x.fir)}`,{sticky:true}).addTo(BR.layer); }));
   [[B.dep,"DEP"],[B.dest,"DEST"],...B.alts.map(a=>[a,"ALTN"])].forEach(([id,r])=>{ const a=B.ap[id]; if(!a||a.lat==null) return;
     L.marker([a.lat, a.lon - 360*Math.round((a.lon - B.route[0][1])/360)],{icon:L.divIcon({className:"",html:`<div style="font:700 10px var(--mono);color:#000;background:#e879f9;padding:1px 4px;border-radius:2px;transform:translate(-50%,-150%);white-space:nowrap">${r} ${esc(id)}</div>`,iconSize:[0,0]}),interactive:false}).addTo(BR.layer); });
   try{ map.fitBounds(L.polyline(B.route).getBounds(),{padding:[40,40], maxZoom:6}); }catch(e){}
@@ -1537,9 +1596,9 @@ async function refreshWx(all){
   await Promise.all([loadAviation("metar"), loadAviation("taf"), all? loadForecast(): null]);
   renderAll(); renderTicker();
 }
-initMap(); initWx(); initTraffic(); renderAll();
+initMap(); initWx(); initTraffic(); initSigmets(); renderAll();
 (async()=>{
-  await Promise.all([loadAviation("metar").then(()=>{renderAll();renderTicker();}), loadForecast().then(renderAll), loadAviation("taf").then(renderAll), loadAdvLive().then(renderAll), loadFaa().then(renderAll), loadFlights().then(()=>{ renderAll(); loadRoutes(); }), loadNat().then(renderAll)]);
+  await Promise.all([loadAviation("metar").then(()=>{renderAll();renderTicker();}), loadForecast().then(renderAll), loadAviation("taf").then(renderAll), loadAdvLive().then(renderAll), loadFaa().then(renderAll), loadFlights().then(()=>{ renderAll(); loadRoutes(); }), loadNat().then(renderAll), loadSigmets().then(renderAll)]);
   renderTicker();
 })();
 setInterval(()=>refreshWx(false), 5*60*1000);     // METAR/TAF every 5 min
@@ -1547,6 +1606,7 @@ setInterval(()=>loadForecast().then(renderAll), 60*60*1000); // forecast hourly
 setInterval(()=>loadFaa().then(renderAll), 2*60*1000);        // FAA NAS status every 2 min
 setInterval(()=>loadFlights().then(()=>{ renderAll(); loadRoutes(); }), 90*1000);       // Atlas flights every 90 s (+ routes for new callsigns)
 setInterval(()=>loadNat().then(renderAll), 15*60*1000);        // NAT tracks every 15 min
+setInterval(()=>loadSigmets().then(renderAll), 10*60*1000);    // SIGMETs every 10 min
 </script>
 </body>
 </html>
