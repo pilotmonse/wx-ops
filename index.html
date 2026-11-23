@@ -1266,12 +1266,20 @@ async function loadNws(s){
   }catch(e){ if($("nws")) $("nws").innerHTML = `<span style="color:var(--dim)">NWS alerts unavailable.</span>`; }
 }
 let lastGdelt = 0;
+/* better news search terms for bases and executive/secondary airports */
+const NEWSQ = {
+  KOPF:['"Opa-locka" Florida','Opa-locka'], KTEB:['"Teterboro" New Jersey','Teterboro'], KHPN:['"White Plains" OR "Westchester County Airport"','White Plains'],
+  PAED:['"JBER" OR "Elmendorf" Alaska','Elmendorf'], PAFA:['"Fairbanks" Alaska','Fairbanks'], KDOV:['"Dover Air Force Base" OR "Dover" Delaware','Dover Delaware'],
+  ETAR:['"Ramstein"','Ramstein'], KILN:['"Wilmington" Ohio','Wilmington Ohio'], KONT:['"Ontario" California airport','Ontario California'], KRFD:['"Rockford" Illinois','Rockford'],
+  MDPC:['"Punta Cana"','Punta Cana'], MDSD:['"Santo Domingo" "República Dominicana" OR "Santo Domingo" Dominican','Santo Domingo'], OMDW:['"Dubai"','Dubai'],
+};
 async function loadNews(s){
   const el = () => $("news");
-  const city = s.city.replace(/ (AFB|AB|World Central|Narita|Kansai|Incheon|Stansted)$/,"").replace(/ (OH|CA)$/,"");
+  const city = NEWSQ[s.icao]?.[1] || s.city.replace(/ (AFB|AB|World Central|Narita|Kansai|Incheon|Stansted)$/,"").replace(/ (OH|CA)$/,"");
+  const bingQ = NEWSQ[s.icao]?.[0] || `"${city}" ${s.country}`;
   const tryQ = async q => { const w = Math.max(0, lastGdelt + 5500 - Date.now()); if(w) await new Promise(r=>setTimeout(r,w)); lastGdelt = Date.now(); const txt = await fetchText(`https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(q)}&mode=ArtList&format=json&maxrecords=12&sort=DateDesc&timespan=3d`, 20000); if(!txt.trim().startsWith("{")) throw new Error(txt.slice(0,80)); return JSON.parse(txt).articles||[]; };
   const bing = async () => {
-    const rss = `https://www.bing.com/news/search?q=${encodeURIComponent(`"${city}" ${s.country}`)}&format=rss`;
+    const rss = `https://www.bing.com/news/search?q=${encodeURIComponent(bingQ)}&format=rss`;
     const j = JSON.parse(await fetchText("https://api.rss2json.com/v1/api.json?rss_url="+encodeURIComponent(rss), 15000));
     if(j.status!=="ok") throw new Error(j.message||"feed error");
     return (j.items||[]).map(it=>{ let dom=""; try{ const real=new URL(it.link).searchParams.get("url"); dom=new URL(real||it.link).hostname.replace(/^www\./,""); }catch(e){}
